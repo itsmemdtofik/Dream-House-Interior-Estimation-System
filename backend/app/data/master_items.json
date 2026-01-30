@@ -1,0 +1,66 @@
+{
+    "Master Bedroom": [
+        {
+            "name": "Wardrobe",
+            "unit": "SFT"
+        },
+        {
+            "name": "Loft",
+            "unit": "SFT"
+        },
+        {
+            "name": "Bed Cot",
+            "unit": "SFT"
+        },
+        {
+            "name": "Headboard",
+            "unit": "SFT"
+        }
+    ],
+    "Hall": [
+        {
+            "name": "TV Unit",
+            "unit": "SFT"
+        },
+        {
+            "name": "Wall Panning",
+            "unit": "SFT"
+        },
+        {
+            "name": "POP",
+            "unit": "SFT"
+        },
+        {
+            "name": "Sofa",
+            "unit": "NOS"
+        }
+    ],
+    "Kitchen": [
+        {
+            "name": "Base Unit",
+            "unit": "SFT"
+        },
+        {
+            "name": "Wall Box",
+            "unit": "SFT"
+        },
+        {
+            "name": "Loft",
+            "unit": "SFT"
+        }
+    ],
+    "Others": [
+        {
+            "name": "Side Table",
+            "unit": "NOS"
+        },
+        {
+            "name": "Pooja Unit",
+            "unit": "SFT"
+        },
+        {
+            "name": "Hall Gate",
+            "unit": "SFT"
+        }
+    ]
+}

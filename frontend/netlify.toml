@@ -1,0 +1,16 @@
+[build]
+  command = "echo 'Frontend is static, no build needed'"
+  publish = "."
+
+# Redirect all API calls to backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://your-railway-backend-url.railway.app/api/:splat"
+  status = 200
+  force = false
+
+# SPA fallback - needed for tab navigation to work
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

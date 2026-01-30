@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dream House Interior – Estimation System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="header-content">
+          <div class="header-badge">✨ PREMIUM</div>
+          <h1>Dream House Interior</h1>
+          <h2>Estimation & Contract Management System</h2>
+          <p class="header-subtitle">Professional tools for seamless project planning</p>
+        </div>
+      </header>
+
+      <main>
+        <!-- Tab Navigation -->
+        <div class="tabs-wrapper">
+          <div class="tabs">
+            <button class="tab-button active" onclick="showTab('create')">
+              <span class="tab-icon">✏️</span>
+              <span class="tab-text">Create Estimate</span>
+            </button>
+            <button class="tab-button" onclick="showTab('view')">
+              <span class="tab-icon">📊</span>
+              <span class="tab-text">View Estimates</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CREATE ESTIMATE TAB -->
+        <div id="create" class="tab-content active">
+          <form id="estimateForm">
+            <section class="form-section">
+              <div class="section-header">
+                <h3>
+                  <span class="section-icon">📋</span>
+                  Project Information
+                </h3>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="location">Location</label>
+                  <div class="input-wrapper">
+                    <input
+                      type="text"
+                      id="location"
+                      placeholder="e.g., Ambagilu Santhosh Nagara Karamballi"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="date">Date</label>
+                  <div class="input-wrapper">
+                    <input type="date" id="date" required />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="party_name">Party Name</label>
+                  <div class="input-wrapper">
+                    <input
+                      type="text"
+                      id="party_name"
+                      placeholder="Customer Name"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="mobile_number">Mobile Number</label>
+                  <div class="input-wrapper">
+                    <input
+                      type="tel"
+                      id="mobile_number"
+                      placeholder="e.g., 9845645828"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="contractor_name">Contractor Name</label>
+                  <div class="input-wrapper">
+                    <input
+                      type="text"
+                      id="contractor_name"
+                      placeholder="e.g., Haviv Khan"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Items Table -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>
+                  <span class="section-icon">📦</span>
+                  Line Items
+                </h3>
+              </div>
+              <div class="table-wrapper">
+                <table id="items">
+                  <thead>
+                    <tr>
+                      <th>S.I.N°</th>
+                      <th>Description</th>
+                      <th>Size</th>
+                      <th>S.F.T</th>
+                      <th>Rate</th>
+                      <th>Amount</th>
+                      <th>Total</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <button type="button" class="btn-secondary btn-add-item" onclick="addRow()">
+                <span class="btn-icon">+</span>
+                Add Item
+              </button>
+            </section>
+
+            <!-- Financial Summary -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>
+                  <span class="section-icon">💰</span>
+                  Financial Summary
+                </h3>
+              </div>
+              <div class="summary-row">
+                <div class="summary-item">
+                  <label>Gross Total:</label>
+                  <span id="gross" class="amount">₹ 0.00</span>
+                </div>
+                <div class="summary-item">
+                  <label>Discount (%):</label>
+                  <input
+                    type="number"
+                    id="discount"
+                    value="0"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    oninput="calculateTotals()"
+                  />
+                </div>
+                <div class="summary-item">
+                  <label>Advance adjustment:</label>
+                  <input
+                    type="number"
+                    id="advance"
+                    value="0"
+                    min="0"
+                    step="100"
+                    oninput="calculateTotals()"
+                  />
+                </div>
+                <div class="summary-item final">
+                  <label>Final Total:</label>
+                  <span id="final" class="amount">₹ 0.00</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Notes -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>
+                  <span class="section-icon">📝</span>
+                  Notes
+                </h3>
+              </div>
+              <div class="input-wrapper">
+                <textarea
+                  id="notes"
+                  placeholder="Add any additional notes or terms..."
+                  rows="3"
+                ></textarea>
+              </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+              <button
+                type="button"
+                class="btn-primary btn-submit"
+                onclick="submitEstimate()"
+              >
+                <span class="btn-icon">💾</span>
+                Save & Generate PDF
+              </button>
+              <button type="reset" class="btn-secondary btn-reset">
+                <span class="btn-icon">🔄</span>
+                Clear Form
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- VIEW ESTIMATES TAB -->
+        <div id="view" class="tab-content">
+          <div class="section-header">
+            <h3>
+              <span class="section-icon">📊</span>
+              Recent Estimates
+            </h3>
+          </div>
+          <div class="table-wrapper">
+            <table id="estimatesTable">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Party Name</th>
+                  <th>Contractor</th>
+                  <th>Date</th>
+                  <th>Gross Total</th>
+                  <th>Final Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="estimatesList"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn-secondary btn-refresh" onclick="loadEstimates()">
+            <span class="btn-icon">🔄</span>
+            Refresh List
+          </button>
+        </div>
+      </main>
+
+      <!-- MODAL: View Estimate Details -->
+      <div id="viewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="modalTitle">Estimate Details</h2>
+            <button class="modal-close" onclick="closeViewModal()">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Project Information -->
+            <section class="modal-section">
+              <h3>📋 Project Information</h3>
+              <div class="modal-grid">
+                <div class="modal-field">
+                  <label>Estimate ID:</label>
+                  <p id="modal-id">-</p>
+                </div>
+                <div class="modal-field">
+                  <label>Date:</label>
+                  <p id="modal-date">-</p>
+                </div>
+              </div>
+              <div class="modal-grid">
+                <div class="modal-field">
+                  <label>Party Name:</label>
+                  <p id="modal-party">-</p>
+                </div>
+                <div class="modal-field">
+                  <label>Mobile Number:</label>
+                  <p id="modal-mobile">-</p>
+                </div>
+              </div>
+              <div class="modal-grid">
+                <div class="modal-field">
+                  <label>Contractor Name:</label>
+                  <p id="modal-contractor">-</p>
+                </div>
+                <div class="modal-field">
+                  <label>Location:</label>
+                  <p id="modal-location">-</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Line Items -->
+            <section class="modal-section">
+              <h3>📦 Line Items</h3>
+              <div class="table-wrapper">
+                <table id="modalItemsTable">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Description</th>
+                      <th>Size</th>
+                      <th>SFT</th>
+                      <th>Rate</th>
+                      <th>Amount</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modalItems"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Financial Summary -->
+            <section class="modal-section">
+              <h3>💰 Financial Summary</h3>
+              <div class="modal-summary">
+                <div class="summary-row">
+                  <label>Gross Total:</label>
+                  <span id="modal-gross" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row">
+                  <label>Discount (%):</label>
+                  <span id="modal-discount" class="summary-value">0%</span>
+                </div>
+                <div class="summary-row">
+                  <label>Discount Amount:</label>
+                  <span id="modal-discount-amount" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row">
+                  <label>Advance Payment:</label>
+                  <span id="modal-advance" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row final">
+                  <label>Final Amount:</label>
+                  <span id="modal-final" class="summary-value">₹ 0.00</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Notes -->
+            <section class="modal-section">
+              <h3>📝 Notes</h3>
+              <p id="modal-notes" style="white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px;">-</p>
+            </section>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-primary" onclick="downloadPDFFromModal()">
+              📥 Download PDF
+            </button>
+            <button type="button" class="btn-secondary" onclick="closeViewModal()">
+              ✖️ Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+      <footer>
+        <p>&copy; 2026 Dream House Interior. All rights reserved.</p>
+      </footer>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/api.js"></script>
+
+    <script>
+      // Initialize on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        // Set today's date as default
+        const dateInput = document.getElementById("date");
+        if (dateInput) {
+          const today = new Date().toISOString().split("T")[0];
+          dateInput.value = today;
+        }
+
+        // Add initial empty row
+        addRow();
+        calculateTotals();
+      });
+    </script>
+  </body>
+</html>
