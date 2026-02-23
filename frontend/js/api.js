@@ -22,11 +22,90 @@ function validateEstimateId(id) {
   return numId;
 }
 
+function extractApiErrorMessage(errorPayload, statusCode = null, fallbackText = "") {
+  const fallbackMessage =
+    fallbackText?.toString().trim() ||
+    (statusCode ? `HTTP error! status: ${statusCode}` : "Request failed");
+
+  if (!errorPayload) return fallbackMessage;
+
+  if (typeof errorPayload === "string") {
+    const trimmed = errorPayload.trim();
+    return trimmed || fallbackMessage;
+  }
+
+  if (Array.isArray(errorPayload)) {
+    const parts = errorPayload
+      .map((item) => extractApiErrorMessage(item, null, ""))
+      .filter(Boolean);
+    return parts.length > 0 ? parts.join("; ") : fallbackMessage;
+  }
+
+  if (typeof errorPayload === "object") {
+    if (typeof errorPayload.detail === "string") {
+      return errorPayload.detail.trim() || fallbackMessage;
+    }
+    if (errorPayload.detail !== undefined) {
+      return extractApiErrorMessage(errorPayload.detail, null, fallbackMessage);
+    }
+    if (typeof errorPayload.message === "string") {
+      return errorPayload.message.trim() || fallbackMessage;
+    }
+    if (typeof errorPayload.msg === "string") {
+      return errorPayload.msg.trim() || fallbackMessage;
+    }
+    if (typeof errorPayload.error === "string") {
+      return errorPayload.error.trim() || fallbackMessage;
+    }
+
+    try {
+      const asJson = JSON.stringify(errorPayload);
+      return asJson && asJson !== "{}" ? asJson : fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  }
+
+  return fallbackMessage;
+}
+
+function extractErrorMessageFromUnknown(error, fallbackText = "Request failed") {
+  if (!error) return fallbackText;
+
+  if (error instanceof Error) {
+    const rawMessage = error.message;
+    if (typeof rawMessage === "string") {
+      const trimmed = rawMessage.trim();
+      if (!trimmed) return fallbackText;
+
+      // Some code paths can stringify plain objects into Error messages.
+      if (trimmed === "[object Object]") {
+        return fallbackText;
+      }
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        return extractApiErrorMessage(parsed, null, trimmed);
+      } catch {
+        return trimmed;
+      }
+    }
+
+    return extractApiErrorMessage(rawMessage, null, fallbackText);
+  }
+
+  return extractApiErrorMessage(error, null, fallbackText);
+}
+
 // ============== ESTIMATE API CALLS ==============
 
 async function createEstimate(estimateData) {
   try {
     console.log("[createEstimate] Sending request with data:", estimateData);
+    // Normalize date if it is provided as YYYY-MM-DD
+    if (typeof estimateData.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(estimateData.date)) {
+      estimateData.date = `${estimateData.date}T00:00:00`;
+    }
 
     // Validate required fields
     if (!estimateData.party_name?.trim()) {
@@ -102,9 +181,15 @@ async function createEstimate(estimateData) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage =
-        errorData.detail || `HTTP error! status: ${response.status}`;
+      const errorData = await response.clone().json().catch(() => null);
+      const errorText = errorData
+        ? ""
+        : await response.text().catch(() => "");
+      const errorMessage = extractApiErrorMessage(
+        errorData,
+        response.status,
+        errorText,
+      );
       throw new Error(errorMessage);
     }
 
@@ -306,19 +391,82 @@ async function submitEstimate() {
         throw new Error("Please add at least one line item before submitting");
       }
 
+      // Ensure numeric fields are sanitized and amounts are present.
       rows.forEach((row, index) => {
         const description = row.querySelector(".description")?.value?.trim();
         const size = row.querySelector(".size")?.value?.trim() || "";
-        const sft = parseFloat(row.querySelector(".sft")?.value || 0);
-        const rate = parseFloat(row.querySelector(".rate")?.value || 0);
-        const total = parseFloat(row.querySelector(".total")?.value || 0);
+
+        // Sanitize numeric strings (remove commas) before parsing
+        const sftRaw = (row.querySelector(".sft")?.value || "")
+          .toString()
+          .replace(/,/g, "");
+        const rateRaw = (row.querySelector(".rate")?.value || "")
+          .toString()
+          .replace(/,/g, "");
+        let sft = parseFloat(sftRaw || 0);
+        let rate = parseFloat(rateRaw || 0);
+
+        sft = isNaN(sft) ? 0 : sft;
+        rate = isNaN(rate) ? 0 : rate;
+
+        // Recompute amount/total if missing or formatted with commas
+        let amountInput = row.querySelector(".amount");
+        let totalInput = row.querySelector(".total");
+
+        const computedAmount = Math.round(sft * rate * 100) / 100;
+
+        if (amountInput) {
+          // sanitize and set value
+          const amtRaw = (amountInput.value || "").toString().replace(/,/g, "");
+          let amt = parseFloat(amtRaw || 0);
+          if (isNaN(amt) || amt === 0) {
+            amt = computedAmount;
+            amountInput.value = amt.toFixed(2);
+          }
+        }
+
+        if (totalInput) {
+          const totRaw = (totalInput.value || "").toString().replace(/,/g, "");
+          let tot = parseFloat(totRaw || 0);
+          if (isNaN(tot) || tot === 0) {
+            tot = computedAmount;
+            totalInput.value = tot.toFixed(2);
+          }
+        }
 
         // Only include rows with valid data
         if (description && sft > 0 && rate > 0) {
-          if (sft < 0 || rate < 0 || total < 0) {
+          if (sft < 0 || rate < 0) {
             throw new Error(`Item ${index + 1}: Negative values not allowed`);
           }
-          items.push({ description, size, sft, rate, total });
+
+          // Read sanitized numeric values for push
+          const amount =
+            parseFloat(
+              (row.querySelector(".amount")?.value || "")
+                .toString()
+                .replace(/,/g, ""),
+            ) || 0;
+          const total =
+            parseFloat(
+              (row.querySelector(".total")?.value || "")
+                .toString()
+                .replace(/,/g, ""),
+            ) || 0;
+
+          if (amount < 0 || total < 0) {
+            throw new Error(`Item ${index + 1}: Negative values not allowed`);
+          }
+
+          items.push({
+            serial_number: index + 1,
+            description,
+            size,
+            sft,
+            rate,
+            amount,
+            total,
+          });
         }
       });
 
@@ -327,6 +475,14 @@ async function submitEstimate() {
       }
 
       console.log("[submitEstimate] Collected items:", items);
+      console.table(items);
+      const debugGross = items.reduce((sum, item) => {
+        console.log(
+          `Item: ${item.description}, amount: ${item.amount}, running sum: ${sum + item.amount}`,
+        );
+        return sum + (item.amount || 0);
+      }, 0);
+      console.log("DEBUG: Calculated gross total:", debugGross);
 
       // Collect form fields
       const party_name = document.getElementById("party_name")?.value?.trim();
@@ -336,7 +492,7 @@ async function submitEstimate() {
       let mobile_number =
         document.getElementById("mobile_number")?.value?.trim() || null;
       const location = document.getElementById("location")?.value?.trim();
-      const date = document.getElementById("date")?.value;
+      const dateValue = document.getElementById("date")?.value;
       const notes = document.getElementById("notes")?.value?.trim() || "";
       let discount = parseFloat(
         document.getElementById("discount")?.value || 0,
@@ -353,9 +509,10 @@ async function submitEstimate() {
       if (!location) {
         throw new Error("Location is required");
       }
-      if (!date) {
+      if (!dateValue) {
         throw new Error("Date is required");
       }
+      const date = `${dateValue}T00:00:00`;
 
       // Validate field lengths
       if (party_name.length > 200) {
@@ -387,7 +544,7 @@ async function submitEstimate() {
       }
 
       // Calculate totals for validation
-      const gross = items.reduce((sum, item) => sum + (item.total || 0), 0);
+      const gross = items.reduce((sum, item) => sum + (item.amount || 0), 0);
       if (advance > gross) {
         throw new Error(
           `Advance (₹${advance.toFixed(2)}) cannot exceed gross total (₹${gross.toFixed(2)})`,
@@ -450,7 +607,11 @@ async function submitEstimate() {
     }
   } catch (error) {
     console.error("[submitEstimate] Error:", error);
-    alert(`Error submitting estimate: ${error.message}`);
+    const errorMessage = extractErrorMessageFromUnknown(
+      error,
+      "Failed to submit estimate. Please check the form and try again.",
+    );
+    alert(`Error submitting estimate: ${errorMessage}`);
     isSubmitting = false;
   }
 }

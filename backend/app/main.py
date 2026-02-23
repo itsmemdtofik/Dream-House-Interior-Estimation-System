@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -21,6 +23,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Log validation errors to make 422 causes visible in server logs.
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print("[validation_error] path:", request.url.path)
+    print("[validation_error] errors:", exc.errors())
+    print("[validation_error] body:", exc.body)
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # Mount PDF directory
 os.makedirs("generated_pdfs", exist_ok=True)
@@ -114,5 +124,4 @@ def get_estimate_pdf(estimate_id: int, db: Session = Depends(get_db)):
 def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
-
 

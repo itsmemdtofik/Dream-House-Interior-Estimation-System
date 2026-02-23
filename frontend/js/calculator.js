@@ -120,7 +120,6 @@ function addRow() {
         type="number" 
         placeholder="0" 
         step="0.01"
-        readonly
       />
     </td>
     <td>
@@ -193,9 +192,9 @@ function calcRow(el) {
     amountInput.value = amount.toFixed(2);
   }
 
-  // Set total to amount if not already set
+  // Set total to amount (always update, don't wait for empty value)
   const totalInput = row.querySelector(".total");
-  if (totalInput && !totalInput.value) {
+  if (totalInput) {
     totalInput.value = amount.toFixed(2);
   }
 
@@ -417,15 +416,20 @@ async function viewEstimate(estimateId) {
 function displayEstimateInModal(estimate) {
   try {
     // Header
-    document.getElementById("modalTitle").innerText = `Estimate #${estimate.id} - ${estimate.party_name}`;
+    document.getElementById("modalTitle").innerText =
+      `Estimate #${estimate.id} - ${estimate.party_name}`;
 
     // Project Information
     document.getElementById("modal-id").innerText = `#${estimate.id}`;
     document.getElementById("modal-date").innerText = formatDate(estimate.date);
-    document.getElementById("modal-party").innerText = sanitizeForDisplay(estimate.party_name) || "N/A";
-    document.getElementById("modal-mobile").innerText = estimate.mobile_number || "Not provided";
-    document.getElementById("modal-contractor").innerText = sanitizeForDisplay(estimate.contractor_name) || "N/A";
-    document.getElementById("modal-location").innerText = sanitizeForDisplay(estimate.location) || "N/A";
+    document.getElementById("modal-party").innerText =
+      sanitizeForDisplay(estimate.party_name) || "N/A";
+    document.getElementById("modal-mobile").innerText =
+      estimate.mobile_number || "Not provided";
+    document.getElementById("modal-contractor").innerText =
+      sanitizeForDisplay(estimate.contractor_name) || "N/A";
+    document.getElementById("modal-location").innerText =
+      sanitizeForDisplay(estimate.location) || "N/A";
 
     // Line Items
     const modalItems = document.getElementById("modalItems");
@@ -447,7 +451,8 @@ function displayEstimateInModal(estimate) {
       });
     } else {
       const row = document.createElement("tr");
-      row.innerHTML = '<td colspan="7" style="text-align: center; color: #999;">No items found</td>';
+      row.innerHTML =
+        '<td colspan="7" style="text-align: center; color: #999;">No items found</td>';
       modalItems.appendChild(row);
     }
 
@@ -458,11 +463,16 @@ function displayEstimateInModal(estimate) {
     const advanceAmount = estimate.advance || 0;
     const finalAmount = estimate.final || 0;
 
-    document.getElementById("modal-gross").innerText = formatCurrency(grossTotal);
-    document.getElementById("modal-discount").innerText = `${discountPercent.toFixed(2)}%`;
-    document.getElementById("modal-discount-amount").innerText = formatCurrency(discountAmount);
-    document.getElementById("modal-advance").innerText = formatCurrency(advanceAmount);
-    document.getElementById("modal-final").innerText = formatCurrency(finalAmount);
+    document.getElementById("modal-gross").innerText =
+      formatCurrency(grossTotal);
+    document.getElementById("modal-discount").innerText =
+      `${discountPercent.toFixed(2)}%`;
+    document.getElementById("modal-discount-amount").innerText =
+      formatCurrency(discountAmount);
+    document.getElementById("modal-advance").innerText =
+      formatCurrency(advanceAmount);
+    document.getElementById("modal-final").innerText =
+      formatCurrency(finalAmount);
 
     // Notes
     const notes = estimate.notes || "-";
@@ -506,7 +516,7 @@ window.onclick = function (event) {
   if (event.target === modal) {
     modal.style.display = "none";
   }
-}
+};
 
 async function downloadPDF(estimateId) {
   try {

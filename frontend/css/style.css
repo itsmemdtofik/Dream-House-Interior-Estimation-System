@@ -400,6 +400,240 @@ table select:focus {
 }
 
 /* ============================================
+   LINE ITEMS TABLE - RESPONSIVE COLUMNS
+   ============================================ */
+#items {
+  table-layout: auto;
+  width: 100%;
+}
+
+#items th,
+#items td {
+  padding: var(--spacing-md) var(--spacing-sm);
+}
+
+/* All input boxes same height */
+#items input,
+#items select {
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+
+  #items th:nth-child(3),
+  #items td:nth-child(3) {
+    width: 8%;
+    min-width: 60px;
+  } /* SIZE */
+
+  #items th:nth-child(4),
+  #items td:nth-child(4) {
+    width: 8%;
+    min-width: 60px;
+  } /* S.F.T */
+
+  #items th:nth-child(5),
+  #items td:nth-child(5) {
+    width: 8%;
+    min-width: 60px;
+  } /* RATE */
+
+  #items th:nth-child(6),
+  #items td:nth-child(6) {
+    width: 11%;
+    min-width: 80px;
+  } /* AMOUNT */
+
+  #items th:nth-child(7),
+  #items td:nth-child(7) {
+    width: 11%;
+    min-width: 80px;
+  } /* TOTAL */
+
+  #items th:nth-child(8),
+  #items td:nth-child(8) {
+    width: 9%;
+    min-width: 50px;
+  } /* ACTION */
+}
+
+/* Tablet: Responsive adjustments - Hide non-essential columns */
+@media (max-width: 1023px) and (min-width: 768px) {
+  #items th,
+  #items td {
+    padding: var(--spacing-sm);
+    font-size: 0.85rem;
+  }
+
+  #items th:nth-child(1),
+  #items td:nth-child(1) {
+    width: 7%;
+  } /* S.I.N° */
+
+  #items th:nth-child(2),
+  #items td:nth-child(2) {
+    width: 23%;
+  } /* DESCRIPTION */
+
+  #items th:nth-child(3),
+  #items td:nth-child(3) {
+    display: none;
+  } /* SIZE - HIDDEN */
+
+  #items th:nth-child(4),
+  #items td:nth-child(4) {
+    width: 12%;
+  } /* S.F.T */
+
+  #items th:nth-child(5),
+  #items td:nth-child(5) {
+    width: 12%;
+  } /* RATE */
+
+  #items th:nth-child(6),
+  #items td:nth-child(6) {
+    display: none;
+  } /* AMOUNT - HIDDEN */
+
+  #items th:nth-child(7),
+  #items td:nth-child(7) {
+    width: 23%;
+  } /* TOTAL */
+
+  #items th:nth-child(8),
+  #items td:nth-child(8) {
+    width: 11%;
+  } /* ACTION */
+}
+
+/* Mobile: Convert table to form layout (like Project Information) */
+@media (max-width: 767px) {
+  .table-wrapper {
+    display: block;
+  }
+
+  #items {
+    display: block;
+    width: 100%;
+  }
+
+  #items thead {
+    display: none;
+  }
+
+  #items tbody {
+    display: block;
+  }
+
+  /* Each row becomes a form group */
+  #items tbody tr {
+    display: block;
+    margin-bottom: var(--spacing-xl);
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  /* Each cell becomes a full-width form field */
+  #items td {
+    display: block;
+    padding: 0;
+    border: none;
+    margin-bottom: var(--spacing-lg);
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Labels styling (like Project Information) */
+  #items td::before {
+    display: block;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-size: 0.95rem;
+    text-transform: capitalize;
+  }
+
+  #items td:nth-child(1)::before {
+    content: "S.I.N°";
+  }
+
+  #items td:nth-child(2)::before {
+    content: "Description";
+  }
+
+  #items td:nth-child(3)::before {
+    content: "Size";
+  }
+
+  #items td:nth-child(4)::before {
+    content: "S.F.T";
+  }
+
+  #items td:nth-child(5)::before {
+    content: "Rate";
+  }
+
+  #items td:nth-child(6)::before {
+    content: "Amount";
+  }
+
+  #items td:nth-child(7)::before {
+    content: "Total";
+  }
+
+  #items td:nth-child(8)::before {
+    content: "Action";
+  }
+
+  /* Input/Select fields - MATCH DESCRIPTION BOX EXACTLY */
+  #items td input,
+  #items td select,
+  #items input,
+  #items select {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: var(--spacing-md) var(--spacing-lg) !important;
+    border: 2px solid var(--border-color) !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.95rem !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    background: var(--bg-white) !important;
+    transition: all 0.3s ease !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    display: block !important;
+    margin: 0 !important;
+    color: var(--text-primary) !important;
+  }
+
+  #items input::placeholder {
+    color: var(--text-light) !important;
+  }
+
+  #items td input:focus,
+  #items td select:focus,
+  #items input:focus,
+  #items select:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+    background: rgba(102, 126, 234, 0.02) !important;
+  }
+
+  /* Button styling in mobile view */
+  #items button {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-top: var(--spacing-lg);
+  }
+}
+
+/* ============================================
    SUMMARY SECTION - PREMIUM
    ============================================ */
 .summary-row {
