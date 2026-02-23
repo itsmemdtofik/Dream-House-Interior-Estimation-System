@@ -262,6 +262,14 @@ async function updateEstimate(estimateId, estimateData) {
     const id = validateEstimateId(estimateId);
     console.log("[updateEstimate] Updating estimate:", id);
 
+    // Normalize date if provided as YYYY-MM-DD
+    if (
+      typeof estimateData.date === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(estimateData.date)
+    ) {
+      estimateData.date = `${estimateData.date}T00:00:00`;
+    }
+
     // Validate update data
     if (estimateData.discount !== undefined) {
       if (
@@ -563,7 +571,7 @@ async function submitEstimate() {
       console.log("[submitEstimate] Calling API with validated data");
 
       // Submit to backend
-      const result = await createEstimate({
+      const payload = {
         party_name,
         contractor_name,
         mobile_number: mobile_number || null,
@@ -573,15 +581,28 @@ async function submitEstimate() {
         discount,
         advance,
         items,
-      });
+      };
+
+      const editingId = parseInt(window.editingEstimateId || "", 10);
+      const isEdit = Number.isFinite(editingId) && editingId > 0;
+      const result = isEdit
+        ? await updateEstimate(editingId, payload)
+        : await createEstimate(payload);
 
       console.log("[submitEstimate] API Response:", result);
 
       alert(
-        `Estimate created successfully!\\n📋 Estimate ID: ${result.id}\\n💾 Saved to database`,
+        isEdit
+          ? `Estimate updated successfully!\\n📋 Estimate ID: ${result.id}`
+          : `Estimate created successfully!\\n📋 Estimate ID: ${result.id}\\n💾 Saved to database`,
       );
 
       // Reset form
+      if (typeof exitEditMode === "function") {
+        exitEditMode();
+      } else {
+        window.editingEstimateId = null;
+      }
       document.getElementById("estimateForm").reset();
       const tbody = document.querySelector("#items tbody");
       if (tbody) {
@@ -601,7 +622,9 @@ async function submitEstimate() {
       // Re-enable submit button
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerText = "💾 Save & Generate PDF";
+        submitBtn.innerText = window.editingEstimateId
+          ? "Update Estimate"
+          : "💾 Save & Generate PDF";
       }
       isSubmitting = false;
     }

@@ -278,7 +278,13 @@ function formatCurrency(amount) {
 function formatDate(dateString) {
   try {
     if (!dateString) return "N/A";
-    const date = new Date(dateString + "T00:00:00");
+    const normalized =
+      typeof dateString === "string" &&
+      (dateString.includes("T") || dateString.includes(" "))
+        ? dateString
+        : `${dateString}T00:00:00`;
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return "Invalid Date";
     return date.toLocaleDateString("en-IN", {
       year: "numeric",
       month: "short",
@@ -287,6 +293,37 @@ function formatDate(dateString) {
   } catch (error) {
     console.error("Error formatting date:", error);
     return dateString;
+  }
+}
+
+function formatDateForInput(dateString) {
+  if (!dateString) return "";
+  const normalized =
+    typeof dateString === "string" &&
+    (dateString.includes("T") || dateString.includes(" "))
+      ? dateString
+      : `${dateString}T00:00:00`;
+  const date = new Date(normalized);
+  if (isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function setEditMode(estimateId) {
+  window.editingEstimateId = estimateId;
+  const submitBtn = document.querySelector('button[onclick="submitEstimate()"]');
+  if (submitBtn) {
+    submitBtn.innerText = "Update Estimate";
+  }
+}
+
+function exitEditMode() {
+  window.editingEstimateId = null;
+  const submitBtn = document.querySelector('button[onclick="submitEstimate()"]');
+  if (submitBtn) {
+    submitBtn.innerText = "💾 Save & Generate PDF";
   }
 }
 
@@ -365,6 +402,7 @@ async function loadEstimates(skip = 0, limit = 50) {
         <td>${formatCurrency(est.final || 0)}</td>
         <td>
           <button class="btn-small" onclick="viewEstimate(${est.id})">View</button>
+          <button class="btn-small" onclick="editEstimate(${est.id})">Edit</button>
           <button class="btn-small" onclick="downloadPDF(${est.id})">PDF</button>
           <button class="btn-small" onclick="deleteEstimateRecord(${est.id})">Delete</button>
         </td>
@@ -411,6 +449,78 @@ async function viewEstimate(estimateId) {
     console.error("[viewEstimate] Error:", error);
     alert(`❌ Error loading estimate: ${error.message}`);
   }
+}
+
+async function editEstimate(estimateId) {
+  try {
+    if (!estimateId || estimateId <= 0) {
+      alert("❌ Invalid estimate ID");
+      return;
+    }
+
+    console.log("[editEstimate] Loading estimate for edit:", estimateId);
+    const estimate = await getEstimate(estimateId);
+    if (!estimate) {
+      alert("❌ Estimate not found");
+      return;
+    }
+
+    // Switch to create tab and populate form
+    showTab("create");
+    populateFormForEdit(estimate);
+    setEditMode(estimateId);
+  } catch (error) {
+    console.error("[editEstimate] Error:", error);
+    alert(`❌ Error loading estimate: ${error.message}`);
+  }
+}
+
+function populateFormForEdit(estimate) {
+  // Header fields
+  document.getElementById("party_name").value = estimate.party_name || "";
+  document.getElementById("contractor_name").value =
+    estimate.contractor_name || "";
+  document.getElementById("mobile_number").value =
+    estimate.mobile_number || "";
+  document.getElementById("location").value = estimate.location || "";
+  document.getElementById("date").value = formatDateForInput(estimate.date);
+  document.getElementById("discount").value = estimate.discount || 0;
+  document.getElementById("advance").value = estimate.advance || 0;
+  document.getElementById("notes").value = estimate.notes || "";
+
+  // Line items
+  const tbody = document.querySelector("#items tbody");
+  if (tbody) {
+    tbody.innerHTML = "";
+    if (Array.isArray(estimate.items) && estimate.items.length > 0) {
+      estimate.items.forEach((item) => {
+        addRow();
+        const row = tbody.lastElementChild;
+        if (!row) return;
+        row.querySelector(".description").value = item.description || "";
+        row.querySelector(".size").value = item.size || "";
+        row.querySelector(".sft").value =
+          typeof item.sft === "number" ? item.sft : "";
+        row.querySelector(".rate").value =
+          typeof item.rate === "number" ? item.rate : "";
+
+        const amountInput = row.querySelector(".amount");
+        const totalInput = row.querySelector(".total");
+        if (amountInput) {
+          amountInput.value =
+            typeof item.amount === "number" ? item.amount.toFixed(2) : "";
+        }
+        if (totalInput) {
+          totalInput.value =
+            typeof item.total === "number" ? item.total.toFixed(2) : "";
+        }
+      });
+    } else {
+      addRow();
+    }
+  }
+
+  calculateTotals();
 }
 
 function displayEstimateInModal(estimate) {
@@ -517,6 +627,15 @@ window.onclick = function (event) {
     modal.style.display = "none";
   }
 };
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("estimateForm");
+  if (form) {
+    form.addEventListener("reset", () => {
+      setTimeout(() => exitEditMode(), 0);
+    });
+  }
+});
 
 async function downloadPDF(estimateId) {
   try {

@@ -34,6 +34,7 @@ class EstimateUpdate(BaseModel):
     contractor_name: Optional[str] = None
     mobile_number: Optional[str] = None
     location: Optional[str] = None
+    date: Optional[datetime] = None
     discount: Optional[float] = None
     advance: Optional[float] = None
     notes: Optional[str] = None

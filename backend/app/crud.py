@@ -69,15 +69,17 @@ def update_estimate(db: Session, estimate_id: int, estimate_update: EstimateUpda
         db_estimate.party_name = estimate_update.party_name
     if estimate_update.contractor_name:
         db_estimate.contractor_name = estimate_update.contractor_name
-    if estimate_update.mobile_number:
+    if estimate_update.mobile_number is not None:
         db_estimate.mobile_number = estimate_update.mobile_number
     if estimate_update.location:
         db_estimate.location = estimate_update.location
+    if estimate_update.date is not None:
+        db_estimate.date = estimate_update.date
     if estimate_update.discount is not None:
         db_estimate.discount = estimate_update.discount
     if estimate_update.advance is not None:
         db_estimate.advance = estimate_update.advance
-    if estimate_update.notes:
+    if estimate_update.notes is not None:
         db_estimate.notes = estimate_update.notes
     
     # Update items if provided
@@ -99,7 +101,17 @@ def update_estimate(db: Session, estimate_id: int, estimate_update: EstimateUpda
             db.add(db_item)
             gross += amount
         db_estimate.gross = gross
-        db_estimate.final = gross - (gross * db_estimate.discount / 100) - db_estimate.advance
+        db_estimate.final = (
+            gross - (gross * db_estimate.discount / 100) - db_estimate.advance
+        )
+
+    # Recalculate final in case discount/advance changed without items update.
+    if estimate_update.items is None:
+        db_estimate.final = (
+            db_estimate.gross
+            - (db_estimate.gross * db_estimate.discount / 100)
+            - db_estimate.advance
+        )
     
     db.commit()
     db.refresh(db_estimate)
