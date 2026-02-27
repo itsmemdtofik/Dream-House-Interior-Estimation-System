@@ -132,8 +132,21 @@ async function createEstimate(estimateData) {
     ) {
       throw new Error("Discount must be between 0 and 100");
     }
+    if (
+      typeof estimateData.tax_percent !== "number" ||
+      estimateData.tax_percent < 0 ||
+      estimateData.tax_percent > 100
+    ) {
+      throw new Error("Tax must be between 0 and 100");
+    }
     if (typeof estimateData.advance !== "number" || estimateData.advance < 0) {
       throw new Error("Advance cannot be negative");
+    }
+    if (
+      typeof estimateData.exchange_rate !== "number" ||
+      estimateData.exchange_rate <= 0
+    ) {
+      throw new Error("Exchange rate must be positive");
     }
 
     // Validate field lengths
@@ -167,6 +180,9 @@ async function createEstimate(estimateData) {
       }
       if (typeof item.rate !== "number" || item.rate < 0) {
         throw new Error(`Item ${idx + 1}: Rate must be a positive number`);
+      }
+      if (item.cost_rate !== undefined && item.cost_rate < 0) {
+        throw new Error(`Item ${idx + 1}: Cost must be a positive number`);
       }
       if (item.description.length > 500) {
         throw new Error(`Item ${idx + 1}: Description exceeds 500 characters`);
@@ -257,6 +273,51 @@ async function getAllEstimates(skip = 0, limit = 50) {
   }
 }
 
+async function listTemplates() {
+  try {
+    const response = await fetch(`${API_URL}/templates`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("[listTemplates] Error:", error);
+    throw error;
+  }
+}
+
+async function createTemplate(templateData) {
+  try {
+    const response = await fetch(`${API_URL}/templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(templateData),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("[createTemplate] Error:", error);
+    throw error;
+  }
+}
+
+async function deleteTemplate(templateId) {
+  try {
+    const response = await fetch(`${API_URL}/templates/${templateId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("[deleteTemplate] Error:", error);
+    throw error;
+  }
+}
+
 async function updateEstimate(estimateId, estimateData) {
   try {
     const id = validateEstimateId(estimateId);
@@ -280,12 +341,29 @@ async function updateEstimate(estimateId, estimateData) {
         throw new Error("Discount must be between 0 and 100");
       }
     }
+    if (estimateData.tax_percent !== undefined) {
+      if (
+        typeof estimateData.tax_percent !== "number" ||
+        estimateData.tax_percent < 0 ||
+        estimateData.tax_percent > 100
+      ) {
+        throw new Error("Tax must be between 0 and 100");
+      }
+    }
     if (estimateData.advance !== undefined) {
       if (
         typeof estimateData.advance !== "number" ||
         estimateData.advance < 0
       ) {
         throw new Error("Advance cannot be negative");
+      }
+    }
+    if (estimateData.exchange_rate !== undefined) {
+      if (
+        typeof estimateData.exchange_rate !== "number" ||
+        estimateData.exchange_rate <= 0
+      ) {
+        throw new Error("Exchange rate must be positive");
       }
     }
 
@@ -366,6 +444,31 @@ async function getEstimatePDF(estimateId) {
   }
 }
 
+async function duplicateEstimate(estimateId) {
+  try {
+    const id = validateEstimateId(estimateId);
+    console.log("[duplicateEstimate] Duplicating estimate:", id);
+
+    const response = await fetch(`${API_URL}/estimates/${id}/duplicate`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Estimate #${id} not found`);
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("[duplicateEstimate] Success:", result);
+    return result;
+  } catch (error) {
+    console.error("[duplicateEstimate] Error:", error);
+    throw error;
+  }
+}
+
 // ============== FORM SUBMISSION ==============
 
 let isSubmitting = false; // Prevent duplicate submissions
@@ -401,6 +504,7 @@ async function submitEstimate() {
 
       // Ensure numeric fields are sanitized and amounts are present.
       rows.forEach((row, index) => {
+        const category = row.querySelector(".category")?.value?.trim() || "";
         const description = row.querySelector(".description")?.value?.trim();
         const size = row.querySelector(".size")?.value?.trim() || "";
 
@@ -411,11 +515,16 @@ async function submitEstimate() {
         const rateRaw = (row.querySelector(".rate")?.value || "")
           .toString()
           .replace(/,/g, "");
+        const costRateRaw = (row.querySelector(".cost_rate")?.value || "")
+          .toString()
+          .replace(/,/g, "");
         let sft = parseFloat(sftRaw || 0);
         let rate = parseFloat(rateRaw || 0);
+        let cost_rate = parseFloat(costRateRaw || 0);
 
         sft = isNaN(sft) ? 0 : sft;
         rate = isNaN(rate) ? 0 : rate;
+        cost_rate = isNaN(cost_rate) ? 0 : cost_rate;
 
         // Recompute amount/total if missing or formatted with commas
         let amountInput = row.querySelector(".amount");
@@ -444,7 +553,7 @@ async function submitEstimate() {
 
         // Only include rows with valid data
         if (description && sft > 0 && rate > 0) {
-          if (sft < 0 || rate < 0) {
+          if (sft < 0 || rate < 0 || cost_rate < 0) {
             throw new Error(`Item ${index + 1}: Negative values not allowed`);
           }
 
@@ -468,10 +577,12 @@ async function submitEstimate() {
 
           items.push({
             serial_number: index + 1,
+            category,
             description,
             size,
             sft,
             rate,
+            cost_rate,
             amount,
             total,
           });
@@ -505,7 +616,14 @@ async function submitEstimate() {
       let discount = parseFloat(
         document.getElementById("discount")?.value || 0,
       );
+      let tax_percent = parseFloat(
+        document.getElementById("tax_percent")?.value || 0,
+      );
       let advance = parseFloat(document.getElementById("advance")?.value || 0);
+      const currency_code = document.getElementById("currency")?.value || "INR";
+      let exchange_rate = parseFloat(
+        document.getElementById("exchange_rate")?.value || 1,
+      );
 
       // Validate required fields
       if (!party_name) {
@@ -543,12 +661,18 @@ async function submitEstimate() {
         }
       }
 
-      // Validate discount and advance
+      // Validate discount and tax and advance
       if (discount < 0 || discount > 100) {
         throw new Error("Discount must be between 0 and 100%");
       }
+      if (tax_percent < 0 || tax_percent > 100) {
+        throw new Error("Tax must be between 0 and 100%");
+      }
       if (advance < 0) {
         throw new Error("Advance cannot be negative");
+      }
+      if (exchange_rate <= 0 || isNaN(exchange_rate)) {
+        throw new Error("Exchange rate must be a positive number");
       }
 
       // Calculate totals for validation
@@ -560,7 +684,8 @@ async function submitEstimate() {
       }
 
       const discountAmount = (gross * discount) / 100;
-      const finalAmount = gross - discountAmount - advance;
+      const taxAmount = (gross * tax_percent) / 100;
+      const finalAmount = gross - discountAmount - advance + taxAmount;
 
       if (finalAmount < 0) {
         console.warn(
@@ -579,7 +704,10 @@ async function submitEstimate() {
         date,
         notes,
         discount,
+        tax_percent,
         advance,
+        currency_code,
+        exchange_rate,
         items,
       };
 
@@ -602,6 +730,9 @@ async function submitEstimate() {
         exitEditMode();
       } else {
         window.editingEstimateId = null;
+      }
+      if (typeof clearDraft === "function") {
+        clearDraft();
       }
       document.getElementById("estimateForm").reset();
       const tbody = document.querySelector("#items tbody");

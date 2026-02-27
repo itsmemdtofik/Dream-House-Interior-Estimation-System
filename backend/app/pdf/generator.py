@@ -1,5 +1,5 @@
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
@@ -41,7 +41,25 @@ def generate_pdf(data, estimate_id):
         spaceAfter=1
     )
     
-    doc = SimpleDocTemplate(filename, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    def add_branding(canvas, doc_obj):
+        canvas.saveState()
+        width, height = doc_obj.pagesize
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#666666"))
+        canvas.drawString(0.6 * inch, height - 0.35 * inch, "Dream House Interior")
+        canvas.drawRightString(
+            width - 0.6 * inch,
+            0.35 * inch,
+            f"Generated on {datetime.now().strftime('%d-%m-%Y %H:%M')}",
+        )
+        canvas.restoreState()
+
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=landscape(A4),
+        topMargin=0.6 * inch,
+        bottomMargin=0.6 * inch,
+    )
     elements = []
     
     # Title
@@ -55,46 +73,112 @@ def generate_pdf(data, estimate_id):
     mobile = data.get("mobile_number", "N/A")
     location = data.get("location", "N/A")
     date_str = data.get("date", datetime.now().strftime("%d-%m-%Y"))
+    currency_code = data.get("currency_code", "INR")
+    exchange_rate = data.get("exchange_rate", 1.0)
     if isinstance(date_str, datetime):
         date_str = date_str.strftime("%d-%m-%Y")
     
     header_info = f"""
     <b>Location:</b> {location}<br/>
     <b>Party Name:</b> {party_name}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Mobile Number:</b> {mobile}<br/>
-    <b>Contractor Name:</b> {contractor_name}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Date:</b> {date_str}
+    <b>Contractor Name:</b> {contractor_name}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Date:</b> {date_str}<br/>
+    <b>Currency:</b> {currency_code}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>Exchange Rate:</b> {exchange_rate}
     """
     elements.append(Paragraph(header_info, header_style))
     elements.append(Spacer(1, 12))
     
-    # Items Table
-    table_data = [["S.I.N°", "Description", "Size", "S.F.T", "Rate", "Amount", "Total"]]
-    
-    for item in data.get("items", []):
-        serial_no = str(item.get("serial_number", ""))
-        description = str(item.get("description", ""))
-        size = str(item.get("size", "-"))
-        sft = f"{item.get('sft', 0):.1f}" if item.get('sft') else "-"
-        rate = f"{item.get('rate', 0):.0f}" if item.get('rate') else "-"
-        amount = f"{item.get('amount', 0):.0f}" if item.get('amount') else "-"
-        total = f"{item.get('total', item.get('amount', 0)):.0f}" if item.get('total') or item.get('amount') else "-"
-        
-        table_data.append([serial_no, description, size, sft, rate, amount, total])
+    # Items Table with categories and profit columns
+    table_data = [[
+        "S.I.N°",
+        "Category",
+        "Description",
+        "Size",
+        "S.F.T",
+        "Rate",
+        "Cost",
+        "Amount",
+        "Profit",
+        "Total",
+    ]]
+
+    items = data.get("items", []) or []
+    # Group by category
+    grouped = {}
+    for item in items:
+        category = item.get("category") or "Uncategorized"
+        grouped.setdefault(category, []).append(item)
+
+    for category, group_items in grouped.items():
+        subtotal = 0
+        for item in group_items:
+            serial_no = str(item.get("serial_number", ""))
+            description = str(item.get("description", ""))
+            size = str(item.get("size", "-"))
+            sft = f"{item.get('sft', 0):.1f}" if item.get('sft') else "-"
+            rate = f"{item.get('rate', 0):.2f}" if item.get('rate') else "-"
+            cost = f"{item.get('cost_rate', 0):.2f}" if item.get('cost_rate') else "-"
+            amount = item.get('amount', 0) or 0
+            profit = item.get('profit', 0) or 0
+            total = item.get('total', item.get('amount', 0)) or 0
+
+            subtotal += total
+
+            table_data.append([
+                serial_no,
+                category,
+                description,
+                size,
+                sft,
+                rate,
+                cost,
+                f"{amount:.2f}",
+                f"{profit:.2f}",
+                f"{total:.2f}",
+            ])
+
+        # Subtotal row for category
+        table_data.append([
+            "",
+            category,
+            "Subtotal",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            f"{subtotal:.2f}",
+        ])
     
     # Create and style table
-    table = Table(table_data, colWidths=[0.6*inch, 1.8*inch, 0.9*inch, 0.7*inch, 0.7*inch, 0.8*inch, 0.8*inch])
+    table = Table(
+        table_data,
+        colWidths=[
+            0.5 * inch,
+            1.1 * inch,
+            2.2 * inch,
+            0.9 * inch,
+            0.6 * inch,
+            0.6 * inch,
+            0.6 * inch,
+            0.8 * inch,
+            0.8 * inch,
+            0.8 * inch,
+        ],
+    )
     table.setStyle(TableStyle([
         # Header row
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#cccccc')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         
         # Data rows
         ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -104,7 +188,7 @@ def generate_pdf(data, estimate_id):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         
         # Align text columns left
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (1, 1), (2, -1), 'LEFT'),
     ]))
     
     elements.append(table)
@@ -113,8 +197,11 @@ def generate_pdf(data, estimate_id):
     # Financial Summary
     gross = data.get("gross", 0)
     discount = data.get("discount", 0)
+    tax_percent = data.get("tax_percent", 0)
+    tax_amount = data.get("tax_amount", 0)
     advance = data.get("advance", 0)
     final = data.get("final", 0)
+    profit = data.get("profit", 0)
     
     summary_style = ParagraphStyle(
         'Summary',
@@ -124,10 +211,13 @@ def generate_pdf(data, estimate_id):
     )
     
     summary_data = [
-        ["Gross Total", f"₹ {gross:,.2f}"],
+        ["Gross Total", f"{currency_code} {gross:,.2f}"],
         ["Discount (%)", f"{discount:.1f}%"],
-        ["Advance Payment", f"₹ {advance:,.2f}"],
-        ["Final Total", f"₹ {final:,.2f}"],
+        ["Tax (%)", f"{tax_percent:.1f}%"],
+        ["Tax Amount", f"{currency_code} {tax_amount:,.2f}"],
+        ["Advance Payment", f"{currency_code} {advance:,.2f}"],
+        ["Profit", f"{currency_code} {profit:,.2f}"],
+        ["Final Total", f"{currency_code} {final:,.2f}"],
     ]
     
     summary_table = Table(summary_data, colWidths=[2.5*inch, 1.5*inch])
@@ -135,11 +225,11 @@ def generate_pdf(data, estimate_id):
         ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
         ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica'),
-        ('FONTNAME', (1, 0), (1, 2), 'Helvetica'),
-        ('FONTNAME', (1, 3), (1, 3), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (1, 2), 9),
-        ('FONTSIZE', (0, 3), (1, 3), 11),
-        ('BACKGROUND', (0, 3), (1, 3), colors.HexColor('#cccccc')),
+        ('FONTNAME', (1, 0), (1, 5), 'Helvetica'),
+        ('FONTNAME', (1, 6), (1, 6), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (1, 5), 9),
+        ('FONTSIZE', (0, 6), (1, 6), 11),
+        ('BACKGROUND', (0, 6), (1, 6), colors.HexColor('#cccccc')),
         ('TOPPADDING', (0, 0), (1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (1, -1), 4),
     ]))
@@ -147,6 +237,5 @@ def generate_pdf(data, estimate_id):
     elements.append(summary_table)
     
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=add_branding, onLaterPages=add_branding)
     return filename
-

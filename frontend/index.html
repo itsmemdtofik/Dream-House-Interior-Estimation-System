@@ -67,6 +67,23 @@
 
               <div class="form-row">
                 <div class="form-group">
+                  <label for="currency">Currency</label>
+                  <div class="input-wrapper">
+                    <select id="currency">
+                      <option value="INR" selected>INR</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="exchange_rate">Exchange Rate (to INR)</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="exchange_rate" value="1.0" min="0" step="0.0001" />
+                  </div>
+                </div>
+                <div class="form-group">
                   <label for="party_name">Party Name</label>
                   <div class="input-wrapper">
                     <input
@@ -117,12 +134,15 @@
                   <thead>
                     <tr>
                       <th>S.I.N°</th>
+                      <th>Category</th>
                       <th>Description</th>
                       <th>Size</th>
                       <th>S.F.T</th>
                       <th>Rate</th>
+                      <th>Cost</th>
                       <th>Amount</th>
                       <th>Total</th>
+                      <th>Profit</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -161,6 +181,18 @@
                   />
                 </div>
                 <div class="summary-item">
+                  <label>Tax (%):</label>
+                  <input
+                    type="number"
+                    id="tax_percent"
+                    value="0"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    oninput="calculateTotals()"
+                  />
+                </div>
+                <div class="summary-item">
                   <label>Advance adjustment:</label>
                   <input
                     type="number"
@@ -171,9 +203,53 @@
                     oninput="calculateTotals()"
                   />
                 </div>
+                <div class="summary-item">
+                  <label>Profit:</label>
+                  <span id="profit" class="amount">₹ 0.00</span>
+                </div>
+                <div class="summary-item">
+                  <label>Margin (%):</label>
+                  <span id="margin_percent" class="amount">0%</span>
+                </div>
                 <div class="summary-item final">
                   <label>Final Total:</label>
                   <span id="final" class="amount">₹ 0.00</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Templates -->
+            <section class="form-section">
+              <div class="section-header">
+                <h3>
+                  <span class="section-icon">📁</span>
+                  Templates
+                </h3>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="template_name">Template Name</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="template_name" placeholder="e.g., 2BHK - Standard" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="template_desc">Description</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="template_desc" placeholder="Optional description" />
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="template_select">Load Template</label>
+                  <div class="input-wrapper">
+                    <select id="template_select"></select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <button type="button" class="btn-secondary" onclick="saveTemplate()">Save Template</button>
+                  <button type="button" class="btn-secondary" onclick="applyTemplate()">Apply Template</button>
                 </div>
               </div>
             </section>
@@ -221,16 +297,37 @@
               Recent Estimates
             </h3>
           </div>
+          <div class="filters-row">
+            <div class="filter-group">
+              <label for="filter_party">Party</label>
+              <input type="text" id="filter_party" placeholder="Search party name" />
+            </div>
+            <div class="filter-group">
+              <label for="filter_contractor">Contractor</label>
+              <input type="text" id="filter_contractor" placeholder="Search contractor" />
+            </div>
+            <div class="filter-group">
+              <label for="filter_from">From</label>
+              <input type="date" id="filter_from" />
+            </div>
+            <div class="filter-group">
+              <label for="filter_to">To</label>
+              <input type="date" id="filter_to" />
+            </div>
+            <div class="filter-actions">
+              <button type="button" class="btn-secondary btn-small" onclick="clearFilters()">Clear</button>
+            </div>
+          </div>
           <div class="table-wrapper">
             <table id="estimatesTable">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Party Name</th>
-                  <th>Contractor</th>
-                  <th>Date</th>
-                  <th>Gross Total</th>
-                  <th>Final Total</th>
+                  <th data-sort="id">ID</th>
+                  <th data-sort="party_name">Party Name</th>
+                  <th data-sort="contractor_name">Contractor</th>
+                  <th data-sort="date">Date</th>
+                  <th data-sort="gross">Gross Total</th>
+                  <th data-sort="final">Final Total</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -240,6 +337,10 @@
           <button type="button" class="btn-secondary btn-refresh" onclick="loadEstimates()">
             <span class="btn-icon">🔄</span>
             Refresh List
+          </button>
+          <button type="button" class="btn-secondary btn-refresh" onclick="exportEstimatesCSV()">
+            <span class="btn-icon">⬇️</span>
+            Export CSV
           </button>
         </div>
       </main>
@@ -296,11 +397,14 @@
                   <thead>
                     <tr>
                       <th>#</th>
+                      <th>Category</th>
                       <th>Description</th>
                       <th>Size</th>
                       <th>SFT</th>
                       <th>Rate</th>
+                      <th>Cost</th>
                       <th>Amount</th>
+                      <th>Profit</th>
                       <th>Total</th>
                     </tr>
                   </thead>
@@ -322,12 +426,28 @@
                   <span id="modal-discount" class="summary-value">0%</span>
                 </div>
                 <div class="summary-row">
+                  <label>Tax (%):</label>
+                  <span id="modal-tax" class="summary-value">0%</span>
+                </div>
+                <div class="summary-row">
                   <label>Discount Amount:</label>
                   <span id="modal-discount-amount" class="summary-value">₹ 0.00</span>
                 </div>
                 <div class="summary-row">
+                  <label>Tax Amount:</label>
+                  <span id="modal-tax-amount" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row">
                   <label>Advance Payment:</label>
                   <span id="modal-advance" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row">
+                  <label>Profit:</label>
+                  <span id="modal-profit" class="summary-value">₹ 0.00</span>
+                </div>
+                <div class="summary-row">
+                  <label>Margin (%):</label>
+                  <span id="modal-margin" class="summary-value">0%</span>
                 </div>
                 <div class="summary-row final">
                   <label>Final Amount:</label>
@@ -346,6 +466,12 @@
           <div class="modal-footer">
             <button type="button" class="btn-primary" onclick="downloadPDFFromModal()">
               📥 Download PDF
+            </button>
+            <button type="button" class="btn-secondary" onclick="sharePDFFromModal()">
+              Share
+            </button>
+            <button type="button" class="btn-secondary" onclick="exportItemsCSVFromModal()">
+              Export Items CSV
             </button>
             <button type="button" class="btn-secondary" onclick="closeViewModal()">
               ✖️ Close
@@ -374,9 +500,12 @@
           dateInput.value = today;
         }
 
-        // Add initial empty row
-        addRow();
-        calculateTotals();
+        // Restore draft if available, otherwise add initial empty row
+        const restored = typeof initDraft === "function" && initDraft();
+        if (!restored) {
+          addRow();
+          calculateTotals();
+        }
       });
     </script>
   </body>

@@ -339,6 +339,54 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.filters-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 0;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  color: #666;
+}
+
+.filter-group input {
+  padding: 8px 10px;
+  border: 1px solid #d8d8e5;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.sort-active {
+  text-decoration: underline;
+}
+
+.inline-edit input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d8d8e5;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -420,43 +468,71 @@ table select:focus {
   align-items: center;
 }
 
+#items th:nth-child(1),
+#items td:nth-child(1) {
+  width: 5%;
+  min-width: 40px;
+} /* S.I.N° */
 
-  #items th:nth-child(3),
-  #items td:nth-child(3) {
-    width: 8%;
-    min-width: 60px;
-  } /* SIZE */
+#items th:nth-child(2),
+#items td:nth-child(2) {
+  width: 10%;
+  min-width: 90px;
+} /* CATEGORY */
 
-  #items th:nth-child(4),
-  #items td:nth-child(4) {
-    width: 8%;
-    min-width: 60px;
-  } /* S.F.T */
+#items th:nth-child(3),
+#items td:nth-child(3) {
+  width: 20%;
+  min-width: 160px;
+} /* DESCRIPTION */
 
-  #items th:nth-child(5),
-  #items td:nth-child(5) {
-    width: 8%;
-    min-width: 60px;
-  } /* RATE */
+#items th:nth-child(4),
+#items td:nth-child(4) {
+  width: 10%;
+  min-width: 90px;
+} /* SIZE */
 
-  #items th:nth-child(6),
-  #items td:nth-child(6) {
-    width: 11%;
-    min-width: 80px;
-  } /* AMOUNT */
+#items th:nth-child(5),
+#items td:nth-child(5) {
+  width: 7%;
+  min-width: 60px;
+} /* S.F.T */
 
-  #items th:nth-child(7),
-  #items td:nth-child(7) {
-    width: 11%;
-    min-width: 80px;
-  } /* TOTAL */
+#items th:nth-child(6),
+#items td:nth-child(6) {
+  width: 7%;
+  min-width: 60px;
+} /* RATE */
 
-  #items th:nth-child(8),
-  #items td:nth-child(8) {
-    width: 9%;
-    min-width: 50px;
-  } /* ACTION */
-}
+#items th:nth-child(7),
+#items td:nth-child(7) {
+  width: 7%;
+  min-width: 60px;
+} /* COST */
+
+#items th:nth-child(8),
+#items td:nth-child(8) {
+  width: 9%;
+  min-width: 80px;
+} /* AMOUNT */
+
+#items th:nth-child(9),
+#items td:nth-child(9) {
+  width: 9%;
+  min-width: 80px;
+} /* TOTAL */
+
+#items th:nth-child(10),
+#items td:nth-child(10) {
+  width: 9%;
+  min-width: 80px;
+} /* PROFIT */
+
+#items th:nth-child(11),
+#items td:nth-child(11) {
+  width: 7%;
+  min-width: 60px;
+} /* ACTION */
 
 /* Tablet: Responsive adjustments - Hide non-essential columns */
 @media (max-width: 1023px) and (min-width: 768px) {
@@ -473,18 +549,18 @@ table select:focus {
 
   #items th:nth-child(2),
   #items td:nth-child(2) {
-    width: 23%;
-  } /* DESCRIPTION */
+    display: none;
+  } /* CATEGORY - HIDDEN */
 
   #items th:nth-child(3),
   #items td:nth-child(3) {
-    display: none;
-  } /* SIZE - HIDDEN */
+    width: 28%;
+  } /* DESCRIPTION */
 
   #items th:nth-child(4),
   #items td:nth-child(4) {
-    width: 12%;
-  } /* S.F.T */
+    display: none;
+  } /* SIZE - HIDDEN */
 
   #items th:nth-child(5),
   #items td:nth-child(5) {
@@ -494,17 +570,42 @@ table select:focus {
   #items th:nth-child(6),
   #items td:nth-child(6) {
     display: none;
-  } /* AMOUNT - HIDDEN */
+  } /* COST - HIDDEN */
 
   #items th:nth-child(7),
   #items td:nth-child(7) {
-    width: 23%;
-  } /* TOTAL */
+    display: none;
+  } /* AMOUNT - HIDDEN */
 
   #items th:nth-child(8),
   #items td:nth-child(8) {
+    display: none;
+  } /* AMOUNT - HIDDEN */
+
+  #items th:nth-child(9),
+  #items td:nth-child(9) {
+    width: 23%;
+  } /* TOTAL */
+
+  #items th:nth-child(10),
+  #items td:nth-child(10) {
+    display: none;
+  } /* PROFIT - HIDDEN */
+
+  #items th:nth-child(11),
+  #items td:nth-child(11) {
     width: 11%;
   } /* ACTION */
+}
+
+@media (max-width: 900px) {
+  .filters-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter-actions {
+    grid-column: span 2;
+    justify-content: flex-start;
+  }
 }
 
 /* Mobile: Convert table to form layout (like Project Information) */
