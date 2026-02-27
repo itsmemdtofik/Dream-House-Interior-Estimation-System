@@ -19,7 +19,7 @@ def generate_pdf(data, estimate_id):
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=18,
-        textColor=colors.HexColor('#000000'),
+        textColor=colors.HexColor('#0b4f4a'),
         spaceAfter=6,
         alignment=1  # Center
     )
@@ -28,7 +28,7 @@ def generate_pdf(data, estimate_id):
         'CustomSubtitle',
         parent=styles['Normal'],
         fontSize=12,
-        textColor=colors.HexColor('#333333'),
+        textColor=colors.HexColor('#1f2933'),
         spaceAfter=2,
         alignment=1
     )
@@ -37,7 +37,7 @@ def generate_pdf(data, estimate_id):
         'Header',
         parent=styles['Normal'],
         fontSize=9,
-        textColor=colors.HexColor('#000000'),
+        textColor=colors.HexColor('#1f2933'),
         spaceAfter=1
     )
     
@@ -45,8 +45,11 @@ def generate_pdf(data, estimate_id):
         canvas.saveState()
         width, height = doc_obj.pagesize
         canvas.setFont("Helvetica", 8)
-        canvas.setFillColor(colors.HexColor("#666666"))
+        canvas.setFillColor(colors.HexColor("#0b4f4a"))
         canvas.drawString(0.6 * inch, height - 0.35 * inch, "Dream House Interior")
+        canvas.setStrokeColor(colors.HexColor("#d1d5db"))
+        canvas.setLineWidth(0.5)
+        canvas.line(0.6 * inch, height - 0.45 * inch, width - 0.6 * inch, height - 0.45 * inch)
         canvas.drawRightString(
             width - 0.6 * inch,
             0.35 * inch,
@@ -168,8 +171,8 @@ def generate_pdf(data, estimate_id):
     )
     table.setStyle(TableStyle([
         # Header row
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#cccccc')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f766e')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 8),
@@ -179,8 +182,8 @@ def generate_pdf(data, estimate_id):
         ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f4f0')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
@@ -203,13 +206,6 @@ def generate_pdf(data, estimate_id):
     final = data.get("final", 0)
     profit = data.get("profit", 0)
     
-    summary_style = ParagraphStyle(
-        'Summary',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=2  # Right align
-    )
-    
     summary_data = [
         ["Gross Total", f"{currency_code} {gross:,.2f}"],
         ["Discount (%)", f"{discount:.1f}%"],
@@ -220,8 +216,15 @@ def generate_pdf(data, estimate_id):
         ["Final Total", f"{currency_code} {final:,.2f}"],
     ]
     
-    summary_table = Table(summary_data, colWidths=[2.5*inch, 1.5*inch])
+    summary_table = Table(
+        summary_data,
+        colWidths=[2.6 * inch, 2.0 * inch],
+        rowHeights=[0.34 * inch] * len(summary_data),
+    )
     summary_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#d1d5db')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+        ('BACKGROUND', (0, 0), (-1, -2), colors.HexColor('#f8fafc')),
         ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
         ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica'),
@@ -229,9 +232,11 @@ def generate_pdf(data, estimate_id):
         ('FONTNAME', (1, 6), (1, 6), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (1, 5), 9),
         ('FONTSIZE', (0, 6), (1, 6), 11),
-        ('BACKGROUND', (0, 6), (1, 6), colors.HexColor('#cccccc')),
-        ('TOPPADDING', (0, 0), (1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (1, -1), 4),
+        ('TEXTCOLOR', (0, 0), (1, 5), colors.HexColor('#1f2933')),
+        ('BACKGROUND', (0, 6), (1, 6), colors.HexColor('#0f766e')),
+        ('TEXTCOLOR', (0, 6), (1, 6), colors.white),
+        ('TOPPADDING', (0, 0), (1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (1, -1), 6),
     ]))
     
     elements.append(summary_table)

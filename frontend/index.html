@@ -6,8 +6,9 @@
     <title>Dream House Interior – Estimation System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   </head>
   <body>
     <div class="container">
@@ -487,17 +488,79 @@
     </div>
 
     <script src="js/data.js?v=20260223"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/api.js?v=20260223"></script>
     <script src="js/calculator.js?v=20260223"></script>
 
     <script>
       // Initialize on page load
       document.addEventListener("DOMContentLoaded", function () {
-        // Set today's date as default
+        // Set today's date as default (flatpickr will pick it up)
         const dateInput = document.getElementById("date");
         if (dateInput) {
           const today = new Date().toISOString().split("T")[0];
           dateInput.value = today;
+        }
+
+        // Flatpickr calendar styling + features
+        function initCalendar(selector, opts = {}) {
+          if (!window.flatpickr) return;
+          flatpickr(selector, {
+            dateFormat: "Y-m-d",
+            allowInput: true,
+            defaultDate: "today",
+            ...opts,
+            onReady: function (selectedDates, dateStr, instance) {
+              const cal = instance.calendarContainer;
+              if (!cal) return;
+              cal.classList.add("flatpickr-industry");
+
+              if (!cal.querySelector(".fp-sidebar")) {
+                const sidebar = document.createElement("div");
+                sidebar.className = "fp-sidebar";
+                sidebar.innerHTML = `
+                  <div class="fp-big-day">--</div>
+                  <div class="fp-day-name">---</div>
+                  <div class="fp-month-year">----</div>
+                  <div class="fp-divider"></div>
+                  <div class="fp-notes-title">Current Events</div>
+                  <ul class="fp-notes">
+                    <li>Day estimate review</li>
+                    <li>Site visit follow-up</li>
+                  </ul>
+                `;
+                cal.appendChild(sidebar);
+              }
+
+              const updateSidebar = (date) => {
+                const d = date || new Date();
+                const day = d.getDate();
+                const dayName = d.toLocaleDateString("en-US", {
+                  weekday: "long",
+                });
+                const monthYear = d.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                });
+
+                cal.querySelector(".fp-big-day").textContent = String(day).padStart(2, "0");
+                cal.querySelector(".fp-day-name").textContent = dayName.toUpperCase();
+                cal.querySelector(".fp-month-year").textContent = monthYear;
+              };
+
+              updateSidebar(selectedDates[0]);
+
+              instance.config.onChange.push(function (dates) {
+                updateSidebar(dates[0]);
+              });
+            },
+          });
+        }
+
+        if (window.flatpickr) {
+          initCalendar("#date");
+          initCalendar("#filter_from", { defaultDate: null });
+          initCalendar("#filter_to", { defaultDate: null });
         }
 
         // Restore draft if available, otherwise add initial empty row
@@ -506,6 +569,12 @@
           addRow();
           calculateTotals();
         }
+
+        // Ensure filters start empty so existing estimates show.
+        const filterFrom = document.getElementById("filter_from");
+        const filterTo = document.getElementById("filter_to");
+        if (filterFrom) filterFrom.value = "";
+        if (filterTo) filterTo.value = "";
       });
     </script>
   </body>
