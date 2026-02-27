@@ -12,6 +12,23 @@
   </head>
   <body>
     <div class="container">
+      <nav class="top-nav">
+        <div class="nav-brand">
+          <span class="brand-mark">🏡</span>
+          <div>
+            <div class="brand-title">Dream House Interior</div>
+            <div class="brand-subtitle">Estimation Studio</div>
+          </div>
+        </div>
+        <div class="nav-actions">
+          <button class="nav-link" data-tab="dashboard" onclick="showTab('dashboard')">Dashboard</button>
+          <button class="nav-link active" data-tab="create" onclick="showTab('create')">Create</button>
+          <button class="nav-link" data-tab="view" onclick="showTab('view')">Estimates</button>
+          <button class="nav-link" data-tab="templates" onclick="showTab('templates')">Templates</button>
+          <button class="nav-link" data-tab="vendors" onclick="showTab('vendors')">Vendors</button>
+          <button class="nav-link" data-tab="workflow" onclick="showTab('workflow')">Workflow</button>
+        </div>
+      </nav>
       <header>
         <div class="header-content">
           <div class="header-badge">✨ PREMIUM</div>
@@ -22,17 +39,35 @@
       </header>
 
       <main>
-        <!-- Tab Navigation -->
-        <div class="tabs-wrapper">
-          <div class="tabs">
-            <button class="tab-button active" onclick="showTab('create')">
-              <span class="tab-icon">✏️</span>
-              <span class="tab-text">Create Estimate</span>
-            </button>
-            <button class="tab-button" onclick="showTab('view')">
-              <span class="tab-icon">📊</span>
-              <span class="tab-text">View Estimates</span>
-            </button>
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard" class="tab-content">
+          <div class="section-header">
+            <h3>
+              <span class="section-icon">📌</span>
+              Dashboard Overview
+            </h3>
+          </div>
+          <div class="ui-grid two-col dashboard-grid">
+            <div class="ui-panel stat-card">
+              <div class="stat-label">Total Estimates</div>
+              <div class="stat-value" id="dash-total-estimates">0</div>
+              <div class="stat-sub" id="dash-latest-estimate">No estimates yet</div>
+            </div>
+            <div class="ui-panel stat-card">
+              <div class="stat-label">Total Revenue</div>
+              <div class="stat-value" id="dash-total-revenue">₹ 0.00</div>
+              <div class="stat-sub" id="dash-profit-total">Profit: ₹ 0.00</div>
+            </div>
+            <div class="ui-panel stat-card">
+              <div class="stat-label">Top Client</div>
+              <div class="stat-value" id="dash-top-client">-</div>
+              <div class="stat-sub" id="dash-top-client-revenue">₹ 0.00</div>
+            </div>
+            <div class="ui-panel stat-card">
+              <div class="stat-label">This Month</div>
+              <div class="stat-value" id="dash-month-revenue">₹ 0.00</div>
+              <div class="stat-sub" id="dash-month-profit">Profit: ₹ 0.00</div>
+            </div>
           </div>
         </div>
 
@@ -45,6 +80,20 @@
                   <span class="section-icon">📋</span>
                   Project Information
                 </h3>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vendor_name">Vendor</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="vendor_name" placeholder="Vendor name (optional)" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="profit_alert_threshold">Profit Alert (%)</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="profit_alert_threshold" value="15" min="0" max="100" step="0.5" />
+                  </div>
+                </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
@@ -136,6 +185,7 @@
                     <tr>
                       <th>S.I.N°</th>
                       <th>Category</th>
+                      <th>Type</th>
                       <th>Description</th>
                       <th>Size</th>
                       <th>S.F.T</th>
@@ -215,42 +265,6 @@
                 <div class="summary-item final">
                   <label>Final Total:</label>
                   <span id="final" class="amount">₹ 0.00</span>
-                </div>
-              </div>
-            </section>
-
-            <!-- Templates -->
-            <section class="form-section">
-              <div class="section-header">
-                <h3>
-                  <span class="section-icon">📁</span>
-                  Templates
-                </h3>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="template_name">Template Name</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="template_name" placeholder="e.g., 2BHK - Standard" />
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="template_desc">Description</label>
-                  <div class="input-wrapper">
-                    <input type="text" id="template_desc" placeholder="Optional description" />
-                  </div>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="template_select">Load Template</label>
-                  <div class="input-wrapper">
-                    <select id="template_select"></select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <button type="button" class="btn-secondary" onclick="saveTemplate()">Save Template</button>
-                  <button type="button" class="btn-secondary" onclick="applyTemplate()">Apply Template</button>
                 </div>
               </div>
             </section>
@@ -343,6 +357,315 @@
             <span class="btn-icon">⬇️</span>
             Export CSV
           </button>
+        </div>
+
+        <!-- TEMPLATES TAB -->
+        <div id="templates" class="tab-content">
+          <section class="form-section">
+            <div class="section-header">
+              <h3>
+                <span class="section-icon">📁</span>
+                Templates
+              </h3>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="template_name">Template Name</label>
+                <div class="input-wrapper">
+                  <input type="text" id="template_name" placeholder="e.g., 2BHK - Standard" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="template_desc">Description</label>
+                <div class="input-wrapper">
+                  <input type="text" id="template_desc" placeholder="Optional description" />
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="template_select">Load Template</label>
+                <div class="input-wrapper">
+                  <select id="template_select"></select>
+                </div>
+              </div>
+              <div class="form-group">
+                <button type="button" class="btn-secondary" onclick="saveTemplate()">Save Template</button>
+                <button type="button" class="btn-secondary" onclick="applyTemplate()">Apply Template</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- VENDORS TAB -->
+        <div id="vendors" class="tab-content">
+          <section class="form-section">
+            <div class="section-header">
+              <h3>
+                <span class="section-icon">🏷️</span>
+                Vendor Rate Cards
+              </h3>
+            </div>
+            <div class="ui-grid two-col">
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Create Vendor</h4>
+                  <span class="panel-meta" id="vendorsCount">0 vendors</span>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="vendor_new_name">Vendor Name</label>
+                    <div class="input-wrapper">
+                      <input type="text" id="vendor_new_name" placeholder="Vendor name" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="vendor_new_contact">Contact</label>
+                    <div class="input-wrapper">
+                      <input type="text" id="vendor_new_contact" placeholder="Phone or email" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <button type="button" class="btn-secondary" onclick="saveVendor()">
+                      Save Vendor
+                    </button>
+                  </div>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="vendorsDirectoryTable">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Contact</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody id="vendorsDirectoryList"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Add Rate Card</h4>
+                  <span class="panel-meta" id="vendorRatesCount">0 rates</span>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="vendor_select">Vendor</label>
+                    <div class="input-wrapper">
+                      <select id="vendor_select"></select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="vendor_rate_category">Category</label>
+                    <div class="input-wrapper">
+                      <input type="text" id="vendor_rate_category" placeholder="e.g., Bedroom" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="vendor_rate_type">Type</label>
+                    <div class="input-wrapper">
+                      <select id="vendor_rate_type">
+                        <option value="material">Material</option>
+                        <option value="labor">Labor</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="vendor_rate_cost">Cost Rate</label>
+                    <div class="input-wrapper">
+                      <input type="number" id="vendor_rate_cost" placeholder="0" step="1" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <button type="button" class="btn-secondary" onclick="saveVendorRate()">
+                      Save Rate
+                    </button>
+                  </div>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="vendorRatesTable">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Cost Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody id="vendorRatesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- WORKFLOW TAB -->
+        <div id="workflow" class="tab-content">
+          <section class="form-section">
+            <div class="section-header">
+              <h3>
+                <span class="section-icon">🧾</span>
+                Workflow
+              </h3>
+            </div>
+            <div class="ui-panel">
+              <div class="panel-header">
+                <h4>Create Workflow Records</h4>
+                <span class="panel-meta" id="workflowCounts">0 items</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="workflow_estimate_id">Estimate ID</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="workflow_estimate_id" placeholder="e.g., 12" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="workflow_invoice_total">Invoice Total</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="workflow_invoice_total" placeholder="0" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <button type="button" class="btn-secondary" onclick="createWorkOrderForEstimate()">
+                    Create Work Order
+                  </button>
+                </div>
+                <div class="form-group">
+                  <button type="button" class="btn-secondary" onclick="createInvoiceForEstimate()">
+                    Create Invoice
+                  </button>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="payment_invoice_id">Invoice ID</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="payment_invoice_id" placeholder="e.g., 5" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="payment_amount">Payment Amount</label>
+                  <div class="input-wrapper">
+                    <input type="number" id="payment_amount" placeholder="0" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="payment_method">Method</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="payment_method" placeholder="Cash/UPI/Bank" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <button type="button" class="btn-secondary" onclick="addPaymentToInvoice()">
+                    Add Payment
+                  </button>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="change_request_title">Change Title</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="change_request_title" placeholder="e.g., Add cabinet" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="change_request_details">Details</label>
+                  <div class="input-wrapper">
+                    <input type="text" id="change_request_details" placeholder="Describe change" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <button type="button" class="btn-secondary" onclick="createChangeRequestForEstimate()">
+                    Create Change Request
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ui-grid two-col">
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Work Orders</h4>
+                  <span class="panel-meta" id="workOrdersCount">0</span>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="workOrdersTable">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="workOrdersList"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Invoices</h4>
+                  <span class="panel-meta" id="invoicesCount">0</span>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="invoicesTable">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody id="invoicesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="ui-grid two-col">
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Payments</h4>
+                  <span class="panel-meta" id="paymentsCount">0</span>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="paymentsTable">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Invoice</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="paymentsList"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="ui-panel">
+                <div class="panel-header">
+                  <h4>Change Requests</h4>
+                  <span class="panel-meta" id="changesCount">0</span>
+                </div>
+                <div class="table-wrapper compact">
+                  <table id="changesTable">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody id="changesList"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -470,6 +793,18 @@
             </button>
             <button type="button" class="btn-secondary" onclick="sharePDFFromModal()">
               Share
+            </button>
+            <button type="button" class="btn-secondary" onclick="openClientLink()">
+              Client Link
+            </button>
+            <button type="button" class="btn-secondary" onclick="shareWhatsApp()">
+              WhatsApp
+            </button>
+            <button type="button" class="btn-secondary" onclick="emailProposal()">
+              Email
+            </button>
+            <button type="button" class="btn-secondary" onclick="showVersions()">
+              Versions
             </button>
             <button type="button" class="btn-secondary" onclick="exportItemsCSVFromModal()">
               Export Items CSV

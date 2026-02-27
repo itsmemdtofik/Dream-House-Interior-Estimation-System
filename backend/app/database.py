@@ -52,6 +52,10 @@ def ensure_sqlite_schema(engine):
                 ("profit", "REAL", "0"),
                 ("currency_code", "TEXT", "'INR'"),
                 ("exchange_rate", "REAL", "1.0"),
+                ("current_version", "INTEGER", "1"),
+                ("status", "TEXT", "'draft'"),
+                ("approved_at", "TEXT", "NULL"),
+                ("profit_alert_threshold", "REAL", "15.0"),
             ]
             for name, col_type, default in alterations:
                 if name not in cols:
@@ -68,6 +72,8 @@ def ensure_sqlite_schema(engine):
                 ("cost_amount", "REAL", "0"),
                 ("profit", "REAL", "0"),
                 ("margin_percent", "REAL", "0"),
+                ("item_type", "TEXT", "'material'"),
+                ("vendor_name", "TEXT", "NULL"),
             ]
             for name, col_type, default in alterations:
                 if name not in cols:

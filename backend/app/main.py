@@ -16,6 +16,28 @@ from app.crud import (
     list_templates,
     create_template,
     delete_template,
+    list_versions,
+    serialize_estimate,
+    create_portal_token,
+    get_portal_by_token,
+    list_comments,
+    add_comment,
+    create_share_link,
+    record_share_click,
+    create_user,
+    authenticate_user,
+    create_vendor,
+    list_vendors,
+    create_vendor_rate,
+    list_vendor_rates,
+    create_work_order,
+    list_work_orders,
+    create_invoice,
+    list_invoices,
+    add_payment,
+    list_payments,
+    create_change_request,
+    list_change_requests,
 )
 from app.schemas import (
     EstimateCreate,
@@ -24,12 +46,34 @@ from app.schemas import (
     EstimateListResponse,
     TemplateCreate,
     TemplateResponse,
+    UserCreate,
+    UserResponse,
+    PortalLinkResponse,
+    CommentCreate,
+    CommentResponse,
+    ProposalVersionResponse,
+    VendorCreate,
+    VendorResponse,
+    VendorRateCreate,
+    VendorRateResponse,
+    WorkOrderCreate,
+    WorkOrderResponse,
+    InvoiceCreate,
+    InvoiceResponse,
+    PaymentCreate,
+    PaymentResponse,
+    ChangeRequestCreate,
+    ChangeRequestResponse,
 )
 from app.pdf.generator import generate_pdf
 import os
 import csv
 import io
 import json
+import smtplib
+from email.message import EmailMessage
+import shutil
+from datetime import datetime
 
 # Create tables and ensure schema for SQLite
 models.Base.metadata.create_all(bind=engine)
@@ -377,6 +421,243 @@ def duplicate_estimate_detail(estimate_id: int, db: Session = Depends(get_db)):
 def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
+
+# ============== VENDORS & RATE CARDS ==============
+
+@app.post("/api/vendors", response_model=VendorResponse)
+def create_vendor_api(vendor: VendorCreate, db: Session = Depends(get_db)):
+    return create_vendor(db, vendor.name, vendor.contact)
+
+@app.get("/api/vendors", response_model=list[VendorResponse])
+def list_vendors_api(db: Session = Depends(get_db)):
+    return list_vendors(db)
+
+@app.post("/api/vendor-rates", response_model=VendorRateResponse)
+def create_vendor_rate_api(rate: VendorRateCreate, db: Session = Depends(get_db)):
+    return create_vendor_rate(
+        db,
+        rate.vendor_id,
+        rate.category,
+        rate.item_type,
+        rate.rate,
+        rate.cost_rate,
+    )
+
+@app.get("/api/vendor-rates", response_model=list[VendorRateResponse])
+def list_vendor_rates_api(vendor_id: int | None = None, db: Session = Depends(get_db)):
+    return list_vendor_rates(db, vendor_id)
+
+# ============== WORKFLOW ==============
+
+@app.post("/api/work-orders", response_model=WorkOrderResponse)
+def create_work_order_api(payload: WorkOrderCreate, db: Session = Depends(get_db)):
+    return create_work_order(db, payload.estimate_id)
+
+@app.get("/api/work-orders", response_model=list[WorkOrderResponse])
+def list_work_orders_api(estimate_id: int | None = None, db: Session = Depends(get_db)):
+    return list_work_orders(db, estimate_id)
+
+@app.post("/api/invoices", response_model=InvoiceResponse)
+def create_invoice_api(payload: InvoiceCreate, db: Session = Depends(get_db)):
+    return create_invoice(db, payload.estimate_id, payload.work_order_id, payload.total)
+
+@app.get("/api/invoices", response_model=list[InvoiceResponse])
+def list_invoices_api(estimate_id: int | None = None, db: Session = Depends(get_db)):
+    return list_invoices(db, estimate_id)
+
+@app.post("/api/payments", response_model=PaymentResponse)
+def add_payment_api(payload: PaymentCreate, db: Session = Depends(get_db)):
+    return add_payment(db, payload.invoice_id, payload.amount, payload.method, payload.note)
+
+@app.get("/api/payments", response_model=list[PaymentResponse])
+def list_payments_api(
+    invoice_id: int | None = None,
+    estimate_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    return list_payments(db, invoice_id=invoice_id, estimate_id=estimate_id)
+
+@app.post("/api/change-requests", response_model=ChangeRequestResponse)
+def create_change_request_api(payload: ChangeRequestCreate, db: Session = Depends(get_db)):
+    return create_change_request(db, payload.estimate_id, payload.title, payload.details)
+
+@app.get("/api/change-requests", response_model=list[ChangeRequestResponse])
+def list_change_requests_api(estimate_id: int | None = None, db: Session = Depends(get_db)):
+    return list_change_requests(db, estimate_id)
+
+# ============== REPORTING ==============
+
+@app.get("/api/reports/summary")
+def report_summary(db: Session = Depends(get_db)):
+    estimates = get_all_estimates(db, skip=0, limit=10000)
+    by_month = {}
+    top_clients = {}
+    category_cost = {}
+
+    for e in estimates:
+        month_key = e.date.strftime("%Y-%m") if e.date else "unknown"
+        by_month.setdefault(month_key, {"revenue": 0, "profit": 0})
+        by_month[month_key]["revenue"] += e.final or 0
+        by_month[month_key]["profit"] += e.profit or 0
+
+        top_clients.setdefault(e.party_name, {"revenue": 0, "count": 0})
+        top_clients[e.party_name]["revenue"] += e.final or 0
+        top_clients[e.party_name]["count"] += 1
+
+        for item in e.items:
+            key = item.category or "Uncategorized"
+            category_cost.setdefault(key, {"cost": 0, "amount": 0})
+            category_cost[key]["cost"] += item.cost_amount or 0
+            category_cost[key]["amount"] += item.amount or 0
+
+    return {
+        "monthly": by_month,
+        "top_clients": top_clients,
+        "category_cost": category_cost,
+    }
+
+# ============== BACKUPS ==============
+
+@app.post("/api/admin/backup")
+def backup_database():
+    src = "estimation_system.db"
+    if not os.path.exists(src):
+        raise HTTPException(status_code=404, detail="Database not found")
+    os.makedirs("backups", exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dst = os.path.join("backups", f"estimation_system_{ts}.db")
+    shutil.copy(src, dst)
+    return {"backup": dst}
+
+# ============== AUTH ==============
+
+@app.post("/api/auth/register", response_model=UserResponse)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return create_user(db, user.email, user.password, user.role)
+
+@app.post("/api/auth/login", response_model=UserResponse)
+def login_user(user: UserCreate, db: Session = Depends(get_db)):
+    authenticated = authenticate_user(db, user.email, user.password)
+    if not authenticated:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return authenticated
+
+# ============== PROPOSAL VERSIONS ==============
+
+@app.get("/api/estimates/{estimate_id}/versions", response_model=list[ProposalVersionResponse])
+def get_versions(estimate_id: int, db: Session = Depends(get_db)):
+    versions = list_versions(db, estimate_id)
+    for v in versions:
+        try:
+            v.data = json.loads(v.data)
+        except Exception:
+            v.data = {}
+    return versions
+
+# ============== CLIENT PORTAL ==============
+
+@app.post("/api/estimates/{estimate_id}/portal-link", response_model=PortalLinkResponse)
+def create_portal_link(estimate_id: int, db: Session = Depends(get_db)):
+    estimate = get_estimate(db, estimate_id)
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    portal = create_portal_token(db, estimate_id)
+    return {"url": f"http://localhost:8000/api/portal/{portal.token}"}
+
+@app.get("/api/portal/{token}")
+def get_portal(token: str, db: Session = Depends(get_db)):
+    portal = get_portal_by_token(db, token)
+    if not portal:
+        raise HTTPException(status_code=404, detail="Portal link not found")
+    estimate = get_estimate(db, portal.estimate_id)
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    comments = []
+    for c in list_comments(db, estimate.id):
+        comments.append(
+            {
+                "id": c.id,
+                "estimate_id": c.estimate_id,
+                "author": c.author,
+                "message": c.message,
+                "created_at": c.created_at,
+            }
+        )
+    return {
+        "estimate": serialize_estimate(estimate),
+        "versions": [json.loads(v.data) for v in list_versions(db, estimate.id)],
+        "comments": comments,
+    }
+
+@app.post("/api/portal/{token}/comment", response_model=CommentResponse)
+def add_portal_comment(token: str, comment: CommentCreate, db: Session = Depends(get_db)):
+    portal = get_portal_by_token(db, token)
+    if not portal:
+        raise HTTPException(status_code=404, detail="Portal link not found")
+    return add_comment(db, portal.estimate_id, comment.author, comment.message)
+
+# ============== SHARE LINKS ==============
+
+@app.post("/api/estimates/{estimate_id}/share-link")
+def create_share(estimate_id: int, channel: str = "whatsapp", db: Session = Depends(get_db)):
+    estimate = get_estimate(db, estimate_id)
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    link = create_share_link(db, estimate_id, channel)
+    return {"url": f"http://localhost:8000/api/share/{link.token}"}
+
+@app.get("/api/share/{token}")
+def track_share(token: str, request: Request, db: Session = Depends(get_db)):
+    link = record_share_click(
+        db,
+        token,
+        request.headers.get("user-agent"),
+        request.client.host if request.client else None,
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Share link not found")
+    portal = create_portal_token(db, link.estimate_id)
+    return {"url": f"http://localhost:8000/api/portal/{portal.token}"}
+
+# ============== EMAIL SENDING ==============
+
+@app.post("/api/estimates/{estimate_id}/send-email")
+def send_estimate_email(
+    estimate_id: int,
+    to_email: str,
+    subject: str = "Your Proposal",
+    message: str = "Please find your proposal at the link below.",
+    db: Session = Depends(get_db),
+):
+    estimate = get_estimate(db, estimate_id)
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    portal = create_portal_token(db, estimate_id)
+    link = f"http://localhost:8000/api/portal/{portal.token}"
+
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+    if not smtp_host or not smtp_user or not smtp_pass:
+        raise HTTPException(status_code=400, detail="SMTP not configured")
+
+    email = EmailMessage()
+    email["From"] = smtp_from
+    email["To"] = to_email
+    email["Subject"] = subject
+    email.set_content(f"{message}\n\nProposal Link: {link}")
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(email)
+
+    return {"message": "Email sent", "link": link}
 
 # ============== TEMPLATES ==============
 

@@ -82,6 +82,12 @@ function addRow() {
       />
     </td>
     <td>
+      <select class="item_type" onchange="calcRow(this)">
+        <option value="material">Material</option>
+        <option value="labor">Labor</option>
+      </select>
+    </td>
+    <td>
       <input 
         class="description" 
         type="text" 
@@ -426,6 +432,77 @@ function formatDate(dateString) {
   }
 }
 
+function formatDateShort(dateString) {
+  if (!dateString) return "-";
+  try {
+    const normalized =
+      typeof dateString === "string" &&
+      (dateString.includes("T") || dateString.includes(" "))
+        ? dateString
+        : `${dateString}T00:00:00`;
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("en-IN", {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "-";
+  }
+}
+
+async function loadDashboard() {
+  try {
+    const estimates = await getAllEstimates(0, 500);
+    const report = await getReportSummary();
+
+    const total = estimates.length;
+    const totalRevenue = estimates.reduce((sum, e) => sum + (e.final || 0), 0);
+    const totalProfit = estimates.reduce((sum, e) => sum + (e.profit || 0), 0);
+    const latest = estimates[0];
+
+    const topClients = report?.top_clients || {};
+    let topClient = "-";
+    let topClientRevenue = 0;
+    Object.entries(topClients).forEach(([name, data]) => {
+      if ((data?.revenue || 0) > topClientRevenue) {
+        topClientRevenue = data.revenue || 0;
+        topClient = name;
+      }
+    });
+
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const monthSummary = report?.monthly?.[monthKey] || { revenue: 0, profit: 0 };
+
+    const totalEl = document.getElementById("dash-total-estimates");
+    const latestEl = document.getElementById("dash-latest-estimate");
+    const revenueEl = document.getElementById("dash-total-revenue");
+    const profitEl = document.getElementById("dash-profit-total");
+    const topClientEl = document.getElementById("dash-top-client");
+    const topClientRevEl = document.getElementById("dash-top-client-revenue");
+    const monthRevenueEl = document.getElementById("dash-month-revenue");
+    const monthProfitEl = document.getElementById("dash-month-profit");
+
+    if (totalEl) totalEl.textContent = `${total}`;
+    if (latestEl) {
+      latestEl.textContent = latest
+        ? `Latest: #${latest.id} • ${sanitizeForDisplay(latest.party_name) || "Unknown"}`
+        : "No estimates yet";
+    }
+    if (revenueEl) revenueEl.textContent = formatCurrency(totalRevenue);
+    if (profitEl) profitEl.textContent = `Profit: ${formatCurrency(totalProfit)}`;
+    if (topClientEl) topClientEl.textContent = topClient;
+    if (topClientRevEl) topClientRevEl.textContent = formatCurrency(topClientRevenue);
+    if (monthRevenueEl) monthRevenueEl.textContent = formatCurrency(monthSummary.revenue || 0);
+    if (monthProfitEl)
+      monthProfitEl.textContent = `Profit: ${formatCurrency(monthSummary.profit || 0)}`;
+  } catch (error) {
+    console.error("[loadDashboard] Error:", error);
+    const totalEl = document.getElementById("dash-total-estimates");
+    if (totalEl) totalEl.textContent = "—";
+  }
+}
+
 function parseDate(dateString) {
   if (!dateString) return null;
   const normalized =
@@ -485,6 +562,9 @@ function showTab(tabName) {
     document.querySelectorAll(".tab-button").forEach((btn) => {
       btn.classList.remove("active");
     });
+    document.querySelectorAll(".nav-link").forEach((btn) => {
+      btn.classList.remove("active");
+    });
 
     // Show selected tab
     const selectedTab = document.getElementById(tabName);
@@ -494,14 +574,20 @@ function showTab(tabName) {
     }
     selectedTab.classList.add("active");
 
-    // Activate clicked button
-    if (event && event.target) {
+    // Activate current nav item
+    const navButton = document.querySelector(`.nav-link[data-tab="${tabName}"]`);
+    if (navButton) {
+      navButton.classList.add("active");
+    } else if (event && event.target) {
       event.target.classList.add("active");
     }
 
     // Load estimates when viewing
     if (tabName === "view") {
       setTimeout(() => loadEstimates(), 100);
+    }
+    if (tabName === "dashboard") {
+      setTimeout(() => loadDashboard(), 50);
     }
   } catch (error) {
     console.error("Error switching tab:", error);
@@ -814,6 +900,8 @@ function populateFormForEdit(estimate) {
         const row = tbody.lastElementChild;
         if (!row) return;
         row.querySelector(".category").value = item.category || "";
+        const typeSelect = row.querySelector(".item_type");
+        if (typeSelect) typeSelect.value = item.item_type || "material";
         row.querySelector(".description").value = item.description || "";
         row.querySelector(".size").value = item.size || "";
         row.querySelector(".sft").value =
@@ -1026,6 +1114,97 @@ function exportItemsCSVFromModal() {
   );
 }
 
+async function openClientLink() {
+  if (!window.currentEstimateId) {
+    alert("❌ No estimate selected");
+    return;
+  }
+  try {
+    const result = await createPortalLink(window.currentEstimateId);
+    if (result?.url) {
+      window.open(result.url, "_blank");
+    } else {
+      alert("Failed to create client link");
+    }
+  } catch (error) {
+    alert(`Error creating client link: ${error.message}`);
+  }
+}
+
+async function shareWhatsApp() {
+  if (!window.currentEstimateId) {
+    alert("❌ No estimate selected");
+    return;
+  }
+  try {
+    const result = await createShareLink(window.currentEstimateId, "whatsapp");
+    const url = result?.url;
+    if (!url) {
+      alert("Failed to create share link");
+      return;
+    }
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+      `Proposal Link: ${url}`,
+    )}`;
+    window.open(whatsappUrl, "_blank");
+  } catch (error) {
+    alert(`Error sharing on WhatsApp: ${error.message}`);
+  }
+}
+
+async function emailProposal() {
+  if (!window.currentEstimateId) {
+    alert("❌ No estimate selected");
+    return;
+  }
+  const toEmail = prompt("Enter client email:");
+  if (!toEmail) return;
+  try {
+    await sendProposalEmail(window.currentEstimateId, toEmail);
+    alert("Email sent");
+  } catch (error) {
+    alert(`Error sending email: ${error.message}`);
+  }
+}
+
+async function showVersions() {
+  if (!window.currentEstimateId) {
+    alert("❌ No estimate selected");
+    return;
+  }
+  try {
+    const versions = await getProposalVersions(window.currentEstimateId);
+    if (!versions || versions.length === 0) {
+      alert("No versions found");
+      return;
+    }
+    const latest = versions[0];
+    alert(`Latest version: v${latest.version} (total ${versions.length})`);
+  } catch (error) {
+    alert(`Error loading versions: ${error.message}`);
+  }
+}
+
+async function openReports() {
+  try {
+    const report = await getReportSummary();
+    alert(
+      `Monthly keys: ${Object.keys(report.monthly || {}).length}\nTop clients: ${Object.keys(report.top_clients || {}).length}`,
+    );
+  } catch (error) {
+    alert(`Error loading reports: ${error.message}`);
+  }
+}
+
+async function backupNow() {
+  try {
+    const result = await triggerBackup();
+    alert(`Backup created: ${result.backup}`);
+  } catch (error) {
+    alert(`Backup failed: ${error.message}`);
+  }
+}
+
 // Close modal when clicking outside of it
 window.onclick = function (event) {
   const modal = document.getElementById("viewModal");
@@ -1061,12 +1240,301 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
   updateSortIndicators();
+  loadVendorsUI();
+  loadDashboard();
   const currencySelect = document.getElementById("currency");
   if (currencySelect) {
     currencySelect.addEventListener("change", () => calculateTotals());
   }
+  const workflowInput = document.getElementById("workflow_estimate_id");
+  if (workflowInput) {
+    workflowInput.addEventListener("change", () => {
+      const estimateId = parseInt(workflowInput.value || "0", 10);
+      if (estimateId) loadWorkflowLists(estimateId);
+    });
+  }
   loadTemplates();
 });
+
+async function loadVendorsUI() {
+  try {
+    const vendors = await listVendors();
+    const select = document.getElementById("vendor_select");
+    if (!select) return;
+    select.innerHTML = '<option value="">Select vendor</option>';
+    vendors.forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.name;
+      select.appendChild(opt);
+    });
+    renderVendorsDirectory(vendors);
+    await renderVendorRates(vendors);
+  } catch (error) {
+    console.error("[loadVendorsUI] Error:", error);
+  }
+}
+
+function renderVendorsDirectory(vendors) {
+  const tbody = document.getElementById("vendorsDirectoryList");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const countEl = document.getElementById("vendorsCount");
+  if (countEl) {
+    countEl.textContent = `${vendors.length} vendor${vendors.length === 1 ? "" : "s"}`;
+  }
+  if (!vendors || vendors.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="3" style="text-align:center; padding: 12px; color: #666;">No vendors yet</td></tr>';
+    return;
+  }
+  vendors.forEach((v) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${v.name}</td>
+      <td>${v.contact || "-"}</td>
+      <td>${formatDateShort(v.created_at)}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function renderVendorRates(vendors) {
+  const tbody = document.getElementById("vendorRatesList");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const rates = await listVendorRates();
+  const countEl = document.getElementById("vendorRatesCount");
+  if (countEl) {
+    countEl.textContent = `${(rates || []).length} rate${rates?.length === 1 ? "" : "s"}`;
+  }
+  if (!rates || rates.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="4" style="text-align:center; padding: 12px; color: #666;">No vendor rates yet</td></tr>';
+    return;
+  }
+  rates.forEach((r) => {
+    const vendor = vendors.find((v) => v.id === r.vendor_id);
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${vendor ? vendor.name : r.vendor_id}</td>
+      <td>${r.category}</td>
+      <td><span class="status-badge status-open">${r.item_type}</span></td>
+      <td>${formatCurrency(r.cost_rate || 0)}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function saveVendor() {
+  try {
+    const name = document.getElementById("vendor_new_name")?.value?.trim();
+    const contact = document.getElementById("vendor_new_contact")?.value?.trim() || "";
+    if (!name) return alert("Vendor name required");
+    await createVendor({ name, contact });
+    alert("Vendor saved");
+    document.getElementById("vendor_new_name").value = "";
+    document.getElementById("vendor_new_contact").value = "";
+    await loadVendorsUI();
+  } catch (error) {
+    alert(`Error saving vendor: ${error.message}`);
+  }
+}
+
+async function saveVendorRate() {
+  try {
+    const vendorId = parseInt(document.getElementById("vendor_select")?.value || "0", 10);
+    const category = document.getElementById("vendor_rate_category")?.value?.trim();
+    const item_type = document.getElementById("vendor_rate_type")?.value || "material";
+    const cost_rate = parseFloat(document.getElementById("vendor_rate_cost")?.value || "0");
+    if (!vendorId || !category) return alert("Vendor and category required");
+    await createVendorRate({
+      vendor_id: vendorId,
+      category,
+      item_type,
+      rate: 0,
+      cost_rate: isNaN(cost_rate) ? 0 : cost_rate,
+    });
+    alert("Rate saved");
+    await loadVendorsUI();
+  } catch (error) {
+    alert(`Error saving rate: ${error.message}`);
+  }
+}
+
+async function createWorkOrderForEstimate() {
+  const estimateId = parseInt(document.getElementById("workflow_estimate_id")?.value || "0", 10);
+  if (!estimateId) return alert("Estimate ID required");
+  try {
+    const result = await createWorkOrder(estimateId);
+    alert(`Work order created: #${result.id}`);
+    await loadWorkflowLists(estimateId);
+  } catch (error) {
+    alert(`Error creating work order: ${error.message}`);
+  }
+}
+
+async function createInvoiceForEstimate() {
+  const estimateId = parseInt(document.getElementById("workflow_estimate_id")?.value || "0", 10);
+  const total = parseFloat(document.getElementById("workflow_invoice_total")?.value || "0");
+  if (!estimateId || isNaN(total)) return alert("Estimate ID and total required");
+  try {
+    const result = await createInvoice(estimateId, total);
+    alert(`Invoice created: #${result.id}`);
+    await loadWorkflowLists(estimateId);
+  } catch (error) {
+    alert(`Error creating invoice: ${error.message}`);
+  }
+}
+
+async function addPaymentToInvoice() {
+  const invoiceId = parseInt(document.getElementById("payment_invoice_id")?.value || "0", 10);
+  const amount = parseFloat(document.getElementById("payment_amount")?.value || "0");
+  const method = document.getElementById("payment_method")?.value?.trim() || "";
+  if (!invoiceId || isNaN(amount)) return alert("Invoice ID and amount required");
+  try {
+    const result = await addPayment(invoiceId, amount, method, "");
+    alert(`Payment added: #${result.id}`);
+    const estimateId = parseInt(document.getElementById("workflow_estimate_id")?.value || "0", 10);
+    if (estimateId) await loadWorkflowLists(estimateId);
+  } catch (error) {
+    alert(`Error adding payment: ${error.message}`);
+  }
+}
+
+async function createChangeRequestForEstimate() {
+  const estimateId = parseInt(document.getElementById("workflow_estimate_id")?.value || "0", 10);
+  const title = document.getElementById("change_request_title")?.value?.trim();
+  const details = document.getElementById("change_request_details")?.value?.trim();
+  if (!estimateId || !title || !details) return alert("Estimate ID, title, and details required");
+  try {
+    const result = await createChangeRequest(estimateId, title, details);
+    alert(`Change request created: #${result.id}`);
+    await loadWorkflowLists(estimateId);
+  } catch (error) {
+    alert(`Error creating change request: ${error.message}`);
+  }
+}
+
+function statusBadgeClass(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "paid") return "status-paid";
+  if (normalized === "partial") return "status-partial";
+  if (normalized === "unpaid") return "status-unpaid";
+  if (normalized === "approved") return "status-approved";
+  if (normalized === "rejected") return "status-rejected";
+  if (normalized === "pending") return "status-pending";
+  if (normalized === "closed") return "status-closed";
+  return "status-open";
+}
+
+async function loadWorkflowLists(estimateId) {
+  const workOrdersList = document.getElementById("workOrdersList");
+  const invoicesList = document.getElementById("invoicesList");
+  const paymentsList = document.getElementById("paymentsList");
+  const changesList = document.getElementById("changesList");
+  if (!workOrdersList || !invoicesList || !paymentsList || !changesList) return;
+
+  workOrdersList.innerHTML = "";
+  invoicesList.innerHTML = "";
+  paymentsList.innerHTML = "";
+  changesList.innerHTML = "";
+
+  let workOrders = [];
+  let invoices = [];
+  let payments = [];
+  let changes = [];
+  try {
+    [workOrders, invoices, payments, changes] = await Promise.all([
+      listWorkOrders(estimateId),
+      listInvoices(estimateId),
+      listPayments({ estimateId }),
+      listChangeRequests(estimateId),
+    ]);
+  } catch (error) {
+    console.error("[loadWorkflowLists] Error:", error);
+    alert(`Error loading workflow: ${error.message}`);
+    return;
+  }
+
+  const setCount = (id, count, label) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `${count} ${label}`;
+  };
+
+  setCount("workOrdersCount", (workOrders || []).length, "orders");
+  setCount("invoicesCount", (invoices || []).length, "invoices");
+  setCount("paymentsCount", (payments || []).length, "payments");
+  setCount("changesCount", (changes || []).length, "changes");
+  const totalItems =
+    (workOrders || []).length + (invoices || []).length + (payments || []).length + (changes || []).length;
+  const workflowCounts = document.getElementById("workflowCounts");
+  if (workflowCounts) workflowCounts.textContent = `${totalItems} items`;
+
+  if (!workOrders || workOrders.length === 0) {
+    workOrdersList.innerHTML =
+      '<tr><td colspan="3" style="text-align:center; padding: 12px; color: #666;">No work orders yet</td></tr>';
+  } else {
+    workOrders.forEach((wo) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>#${wo.id}</td>
+        <td><span class="status-badge ${statusBadgeClass(wo.status)}">${wo.status}</span></td>
+        <td>${formatDateShort(wo.created_at)}</td>
+      `;
+      workOrdersList.appendChild(row);
+    });
+  }
+
+  if (!invoices || invoices.length === 0) {
+    invoicesList.innerHTML =
+      '<tr><td colspan="4" style="text-align:center; padding: 12px; color: #666;">No invoices yet</td></tr>';
+  } else {
+    invoices.forEach((inv) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>#${inv.id}</td>
+        <td><span class="status-badge ${statusBadgeClass(inv.status)}">${inv.status}</span></td>
+        <td>${formatCurrency(inv.total || 0)}</td>
+        <td>${formatCurrency(inv.paid || 0)}</td>
+      `;
+      invoicesList.appendChild(row);
+    });
+  }
+
+  if (!payments || payments.length === 0) {
+    paymentsList.innerHTML =
+      '<tr><td colspan="5" style="text-align:center; padding: 12px; color: #666;">No payments yet</td></tr>';
+  } else {
+    payments.forEach((pay) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>#${pay.id}</td>
+        <td>#${pay.invoice_id}</td>
+        <td>${formatCurrency(pay.amount || 0)}</td>
+        <td>${pay.method || "-"}</td>
+        <td>${formatDateShort(pay.created_at)}</td>
+      `;
+      paymentsList.appendChild(row);
+    });
+  }
+
+  if (!changes || changes.length === 0) {
+    changesList.innerHTML =
+      '<tr><td colspan="4" style="text-align:center; padding: 12px; color: #666;">No change requests yet</td></tr>';
+  } else {
+    changes.forEach((cr) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>#${cr.id}</td>
+        <td>${sanitizeForDisplay(cr.title)}</td>
+        <td><span class="status-badge ${statusBadgeClass(cr.status)}">${cr.status}</span></td>
+        <td>${formatDateShort(cr.created_at)}</td>
+      `;
+      changesList.appendChild(row);
+    });
+  }
+}
 
 async function downloadPDF(estimateId) {
   try {

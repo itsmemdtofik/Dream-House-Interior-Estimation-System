@@ -318,6 +318,183 @@ async function deleteTemplate(templateId) {
   }
 }
 
+async function createPortalLink(estimateId) {
+  const id = validateEstimateId(estimateId);
+  const response = await fetch(`${API_URL}/estimates/${id}/portal-link`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+}
+
+async function createShareLink(estimateId, channel = "whatsapp") {
+  const id = validateEstimateId(estimateId);
+  const response = await fetch(
+    `${API_URL}/estimates/${id}/share-link?channel=${encodeURIComponent(channel)}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+}
+
+async function sendProposalEmail(estimateId, toEmail, subject, message) {
+  const id = validateEstimateId(estimateId);
+  const params = new URLSearchParams({
+    to_email: toEmail,
+    subject: subject || "Your Proposal",
+    message:
+      message ||
+      "Please find your proposal at the link below.",
+  });
+  const response = await fetch(
+    `${API_URL}/estimates/${id}/send-email?${params.toString()}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+}
+
+async function getProposalVersions(estimateId) {
+  const id = validateEstimateId(estimateId);
+  const response = await fetch(`${API_URL}/estimates/${id}/versions`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+}
+
+async function listVendors() {
+  const response = await fetch(`${API_URL}/vendors`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function createVendor(vendor) {
+  const response = await fetch(`${API_URL}/vendors`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(vendor),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function listVendorRates(vendorId) {
+  const q = vendorId ? `?vendor_id=${vendorId}` : "";
+  const response = await fetch(`${API_URL}/vendor-rates${q}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function createVendorRate(rate) {
+  const response = await fetch(`${API_URL}/vendor-rates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rate),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function getReportSummary() {
+  const response = await fetch(`${API_URL}/reports/summary`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function createWorkOrder(estimateId) {
+  const response = await fetch(`${API_URL}/work-orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ estimate_id: estimateId }),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function listWorkOrders(estimateId) {
+  const q = estimateId ? `?estimate_id=${estimateId}` : "";
+  const response = await fetch(`${API_URL}/work-orders${q}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function createInvoice(estimateId, total, workOrderId = null) {
+  const response = await fetch(`${API_URL}/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      estimate_id: estimateId,
+      work_order_id: workOrderId,
+      total,
+    }),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function listInvoices(estimateId) {
+  const q = estimateId ? `?estimate_id=${estimateId}` : "";
+  const response = await fetch(`${API_URL}/invoices${q}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function addPayment(invoiceId, amount, method, note) {
+  const response = await fetch(`${API_URL}/payments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      invoice_id: invoiceId,
+      amount,
+      method,
+      note,
+    }),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function listPayments({ invoiceId = null, estimateId = null } = {}) {
+  const params = new URLSearchParams();
+  if (invoiceId) params.append("invoice_id", invoiceId);
+  if (estimateId) params.append("estimate_id", estimateId);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_URL}/payments${q}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function createChangeRequest(estimateId, title, details) {
+  const response = await fetch(`${API_URL}/change-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ estimate_id: estimateId, title, details }),
+  });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function listChangeRequests(estimateId) {
+  const q = estimateId ? `?estimate_id=${estimateId}` : "";
+  const response = await fetch(`${API_URL}/change-requests${q}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+async function triggerBackup() {
+  const response = await fetch(`${API_URL}/admin/backup`, { method: "POST" });
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
 async function updateEstimate(estimateId, estimateData) {
   try {
     const id = validateEstimateId(estimateId);
@@ -505,6 +682,10 @@ async function submitEstimate() {
       // Ensure numeric fields are sanitized and amounts are present.
       rows.forEach((row, index) => {
         const category = row.querySelector(".category")?.value?.trim() || "";
+        const vendor_name =
+          document.getElementById("vendor_name")?.value?.trim() || "";
+        const item_type =
+          row.querySelector(".item_type")?.value?.trim() || "material";
         const description = row.querySelector(".description")?.value?.trim();
         const size = row.querySelector(".size")?.value?.trim() || "";
 
@@ -578,6 +759,8 @@ async function submitEstimate() {
           items.push({
             serial_number: index + 1,
             category,
+            item_type,
+            vendor_name,
             description,
             size,
             sft,
