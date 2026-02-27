@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from app.database import engine, get_db, ensure_sqlite_schema
+from app.database import engine, get_db, ensure_sqlite_schema, SessionLocal
 from app import models
 from app.crud import (
     create_estimate,
@@ -34,6 +34,46 @@ import json
 # Create tables and ensure schema for SQLite
 models.Base.metadata.create_all(bind=engine)
 ensure_sqlite_schema(engine)
+
+# Seed a default template if none exist (helps first-time UX).
+def ensure_default_template():
+    db = SessionLocal()
+    try:
+        existing = list_templates(db)
+        if existing:
+            return
+        default_data = {
+            "party_name": "",
+            "contractor_name": "",
+            "mobile_number": "",
+            "location": "",
+            "date": "",
+            "discount": "0",
+            "tax_percent": "0",
+            "advance": "0",
+            "currency_code": "INR",
+            "exchange_rate": "1.0",
+            "notes": "",
+            "items": [
+                {
+                    "serial_number": 1,
+                    "category": "Living Room",
+                    "description": "TV Unit",
+                    "size": "8'-0\"x10'-0\"",
+                    "sft": "80",
+                    "rate": "700",
+                    "cost_rate": "500",
+                    "amount": "",
+                    "total": "",
+                    "profit": "",
+                }
+            ],
+        }
+        create_template(db, TemplateCreate(name="Default Template", description="Sample starter template", data=default_data))
+    finally:
+        db.close()
+
+ensure_default_template()
 
 app = FastAPI(title="Interior Estimation System")
 
@@ -112,6 +152,94 @@ def list_estimates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
     """Get all estimates"""
     estimates = get_all_estimates(db, skip=skip, limit=limit)
     return estimates
+
+@app.get("/api/estimates/export.csv")
+def export_estimates_csv(db: Session = Depends(get_db)):
+    estimates = get_all_estimates(db, skip=0, limit=10000)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id",
+        "party_name",
+        "contractor_name",
+        "date",
+        "gross",
+        "discount",
+        "tax_percent",
+        "tax_amount",
+        "advance",
+        "final",
+        "profit",
+        "currency_code",
+        "exchange_rate",
+    ])
+    for e in estimates:
+        writer.writerow([
+            e.id,
+            e.party_name,
+            e.contractor_name,
+            e.date.isoformat() if e.date else "",
+            e.gross,
+            e.discount,
+            e.tax_percent,
+            e.tax_amount,
+            e.advance,
+            e.final,
+            e.profit,
+            e.currency_code,
+            e.exchange_rate,
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=estimates.csv"},
+    )
+
+@app.get("/api/estimates/{estimate_id}/items.csv")
+def export_estimate_items_csv(estimate_id: int, db: Session = Depends(get_db)):
+    estimate = get_estimate(db, estimate_id)
+    if not estimate:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "estimate_id",
+        "serial_number",
+        "category",
+        "description",
+        "size",
+        "sft",
+        "rate",
+        "cost_rate",
+        "amount",
+        "total",
+        "cost_amount",
+        "profit",
+        "margin_percent",
+    ])
+    for item in estimate.items:
+        writer.writerow([
+            estimate.id,
+            item.serial_number,
+            item.category,
+            item.description,
+            item.size,
+            item.sft,
+            item.rate,
+            item.cost_rate,
+            item.amount,
+            item.total,
+            item.cost_amount,
+            item.profit,
+            item.margin_percent,
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=estimate_{estimate_id}_items.csv"},
+    )
 
 @app.get("/api/estimates/{estimate_id}", response_model=EstimateResponse)
 def get_estimate_detail(estimate_id: int, db: Session = Depends(get_db)):
@@ -279,91 +407,3 @@ def delete_template_api(template_id: int, db: Session = Depends(get_db)):
     return {"message": "Template deleted"}
 
 # ============== EXPORTS ==============
-
-@app.get("/api/estimates/export.csv")
-def export_estimates_csv(db: Session = Depends(get_db)):
-    estimates = get_all_estimates(db, skip=0, limit=10000)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "id",
-        "party_name",
-        "contractor_name",
-        "date",
-        "gross",
-        "discount",
-        "tax_percent",
-        "tax_amount",
-        "advance",
-        "final",
-        "profit",
-        "currency_code",
-        "exchange_rate",
-    ])
-    for e in estimates:
-        writer.writerow([
-            e.id,
-            e.party_name,
-            e.contractor_name,
-            e.date.isoformat() if e.date else "",
-            e.gross,
-            e.discount,
-            e.tax_percent,
-            e.tax_amount,
-            e.advance,
-            e.final,
-            e.profit,
-            e.currency_code,
-            e.exchange_rate,
-        ])
-    output.seek(0)
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=estimates.csv"},
-    )
-
-@app.get("/api/estimates/{estimate_id}/items.csv")
-def export_estimate_items_csv(estimate_id: int, db: Session = Depends(get_db)):
-    estimate = get_estimate(db, estimate_id)
-    if not estimate:
-        raise HTTPException(status_code=404, detail="Estimate not found")
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "estimate_id",
-        "serial_number",
-        "category",
-        "description",
-        "size",
-        "sft",
-        "rate",
-        "cost_rate",
-        "amount",
-        "total",
-        "cost_amount",
-        "profit",
-        "margin_percent",
-    ])
-    for item in estimate.items:
-        writer.writerow([
-            estimate.id,
-            item.serial_number,
-            item.category,
-            item.description,
-            item.size,
-            item.sft,
-            item.rate,
-            item.cost_rate,
-            item.amount,
-            item.total,
-            item.cost_amount,
-            item.profit,
-            item.margin_percent,
-        ])
-    output.seek(0)
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=estimate_{estimate_id}_items.csv"},
-    )

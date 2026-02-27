@@ -96,6 +96,7 @@ function addRow() {
         type="text" 
         placeholder="e.g., 9'-0\" x 7'-0\""
         maxlength="100"
+        oninput="calcRow(this)"
       />
     </td>
     <td>
@@ -193,6 +194,7 @@ function calcRow(el) {
   const row = el.closest("tr");
   if (!row) return;
 
+  const sizeInput = row.querySelector(".size");
   let sft = parseFloat(row.querySelector(".sft")?.value || 0);
   let rate = parseFloat(row.querySelector(".rate")?.value || 0);
   let costRate = parseFloat(row.querySelector(".cost_rate")?.value || 0);
@@ -212,6 +214,16 @@ function calcRow(el) {
     alert("Cost cannot be negative");
     row.querySelector(".cost_rate").value = "";
     return;
+  }
+
+  // Auto-calculate SFT from size if provided (e.g., 10'-0"x10'-0")
+  if (sizeInput && sizeInput.value) {
+    const parsed = parseSizeToSft(sizeInput.value);
+    if (parsed > 0) {
+      sft = parsed;
+      const sftInput = row.querySelector(".sft");
+      if (sftInput) sftInput.value = parsed.toFixed(2);
+    }
   }
 
   // Handle NaN or invalid values
@@ -242,6 +254,28 @@ function calcRow(el) {
 
   calculateTotals();
   scheduleDraftSave();
+}
+
+function parseSizeToSft(sizeStr) {
+  if (!sizeStr || typeof sizeStr !== "string") return 0;
+  const raw = sizeStr.toLowerCase().replace(/\s+/g, "");
+  const parts = raw.split("x");
+  if (parts.length !== 2) return 0;
+
+  const parseFeetInches = (val) => {
+    // Accept formats: 10'-0", 10'0", 10-0, 10.0
+    const cleaned = val.replace(/″|”/g, '"');
+    const match = cleaned.match(/(\d+)(?:'|ft)?-?(\d+)?(?:\"|in)?/);
+    if (!match) return 0;
+    const feet = parseFloat(match[1] || "0");
+    const inches = parseFloat(match[2] || "0");
+    return feet + inches / 12;
+  };
+
+  const width = parseFeetInches(parts[0]);
+  const height = parseFeetInches(parts[1]);
+  if (!width || !height) return 0;
+  return Math.round(width * height * 100) / 100;
 }
 
 function calculateTotals() {
@@ -1191,6 +1225,13 @@ async function loadTemplates() {
     const select = document.getElementById("template_select");
     if (!select) return;
     select.innerHTML = '<option value="">Select a template</option>';
+    if (templatesCache.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No templates yet";
+      select.appendChild(opt);
+      return;
+    }
     templatesCache.forEach((tpl) => {
       const opt = document.createElement("option");
       opt.value = tpl.id;
