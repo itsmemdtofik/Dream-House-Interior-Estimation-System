@@ -95,6 +95,37 @@ def update_estimate_detail(estimate_id: int, estimate: EstimateUpdate, db: Sessi
     db_estimate = update_estimate(db, estimate_id, estimate)
     if not db_estimate:
         raise HTTPException(status_code=404, detail="Estimate not found")
+
+    # Regenerate PDF after update so the latest data is reflected.
+    try:
+        pdf_path = generate_pdf(
+            {
+                "id": db_estimate.id,
+                "party_name": db_estimate.party_name,
+                "contractor_name": db_estimate.contractor_name,
+                "mobile_number": db_estimate.mobile_number,
+                "location": db_estimate.location,
+                "date": db_estimate.date,
+                "items": [{
+                    "serial_number": item.serial_number,
+                    "description": item.description,
+                    "size": item.size,
+                    "sft": item.sft,
+                    "rate": item.rate,
+                    "amount": item.amount,
+                    "total": item.total
+                } for item in db_estimate.items],
+                "gross": db_estimate.gross,
+                "discount": db_estimate.discount,
+                "advance": db_estimate.advance,
+                "final": db_estimate.final
+            },
+            db_estimate.id
+        )
+        db_estimate.pdf_url = f"http://localhost:8000/{pdf_path}"
+    except Exception as e:
+        print(f"PDF regeneration failed: {e}")
+
     return db_estimate
 
 @app.delete("/api/estimates/{estimate_id}")
@@ -124,4 +155,3 @@ def get_estimate_pdf(estimate_id: int, db: Session = Depends(get_db)):
 def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
-

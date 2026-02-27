@@ -660,7 +660,9 @@ async function downloadPDF(estimateId) {
         console.error("Suspicious PDF URL:", pdfData.pdf_url);
         return;
       }
-      window.open(pdfData.pdf_url, "_blank");
+      const separator = pdfData.pdf_url.includes("?") ? "&" : "?";
+      const cacheBustedUrl = `${pdfData.pdf_url}${separator}v=${Date.now()}`;
+      window.open(cacheBustedUrl, "_blank");
       console.log("✅ PDF download initiated");
     } else {
       alert("PDF URL not available. The PDF may not have been generated yet.");
