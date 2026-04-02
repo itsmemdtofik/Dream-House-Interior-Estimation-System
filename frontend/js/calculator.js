@@ -264,17 +264,51 @@ function calcRow(el) {
 
 function parseSizeToSft(sizeStr) {
   if (!sizeStr || typeof sizeStr !== "string") return 0;
-  const raw = sizeStr.toLowerCase().replace(/\s+/g, "");
+  const raw = sizeStr
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[’‘′]/g, "'")
+    .replace(/[–—−]/g, "-")
+    .replace(/[″“”]/g, '"')
+    .replace(/×/g, "x")
+    .replace(/\*/g, "x");
   const parts = raw.split("x");
   if (parts.length !== 2) return 0;
 
   const parseFeetInches = (val) => {
-    // Accept formats: 10'-0", 10'0", 10-0, 10.0
-    const cleaned = val.replace(/″|”/g, '"');
-    const match = cleaned.match(/(\d+)(?:'|ft)?-?(\d+)?(?:\"|in)?/);
+    // Accept formats: 10'-0", 10'0", 10-0, 10.0, 10ft6in, 10'6"
+    const cleaned = val
+      .replace(/″|”|“/g, '"')
+      .replace(/feet|ft/g, "'")
+      .replace(/inches|inch|in/g, '"');
+
+    // Force decimal-feet interpretation when a dash is used after feet: 2'-6" => 2.6
+    const dashMatch = cleaned.match(/^(\d+(?:\.\d+)?)'\-(\d+(?:\.\d+)?)/);
+    if (dashMatch) {
+      const feet = parseFloat(dashMatch[1] || "0");
+      const decimalPart = dashMatch[2] || "0";
+      const denom = decimalPart.includes(".")
+        ? Math.pow(10, decimalPart.split(".")[1].length)
+        : decimalPart.length >= 2
+          ? 100
+          : 10;
+      return feet + parseFloat(decimalPart) / denom;
+    }
+    const match = cleaned.match(
+      /^(\d+(?:\.\d+)?)(?:'|ft)?(?:-?(\d+(?:\.\d+)?))?(?:\"|in)?$/,
+    );
     if (!match) return 0;
     const feet = parseFloat(match[1] || "0");
     const inches = parseFloat(match[2] || "0");
+    if (isNaN(feet) || isNaN(inches)) return 0;
+    // If user uses dash like 2'-6" we interpret inches as decimal feet (2.6)
+    const useDecimalFeet =
+      /'\-/.test(cleaned) ||
+      /-\d+(?:\.\d+)?\"?$/.test(cleaned);
+    if (useDecimalFeet) {
+      const denom = inches >= 10 ? 100 : 10;
+      return feet + inches / denom;
+    }
     return feet + inches / 12;
   };
 
@@ -451,57 +485,6 @@ function formatDateShort(dateString) {
   }
 }
 
-async function loadDashboard() {
-  try {
-    const estimates = await getAllEstimates(0, 500);
-    const report = await getReportSummary();
-
-    const total = estimates.length;
-    const totalRevenue = estimates.reduce((sum, e) => sum + (e.final || 0), 0);
-    const totalProfit = estimates.reduce((sum, e) => sum + (e.profit || 0), 0);
-    const latest = estimates[0];
-
-    const topClients = report?.top_clients || {};
-    let topClient = "-";
-    let topClientRevenue = 0;
-    Object.entries(topClients).forEach(([name, data]) => {
-      if ((data?.revenue || 0) > topClientRevenue) {
-        topClientRevenue = data.revenue || 0;
-        topClient = name;
-      }
-    });
-
-    const monthKey = new Date().toISOString().slice(0, 7);
-    const monthSummary = report?.monthly?.[monthKey] || { revenue: 0, profit: 0 };
-
-    const totalEl = document.getElementById("dash-total-estimates");
-    const latestEl = document.getElementById("dash-latest-estimate");
-    const revenueEl = document.getElementById("dash-total-revenue");
-    const profitEl = document.getElementById("dash-profit-total");
-    const topClientEl = document.getElementById("dash-top-client");
-    const topClientRevEl = document.getElementById("dash-top-client-revenue");
-    const monthRevenueEl = document.getElementById("dash-month-revenue");
-    const monthProfitEl = document.getElementById("dash-month-profit");
-
-    if (totalEl) totalEl.textContent = `${total}`;
-    if (latestEl) {
-      latestEl.textContent = latest
-        ? `Latest: #${latest.id} • ${sanitizeForDisplay(latest.party_name) || "Unknown"}`
-        : "No estimates yet";
-    }
-    if (revenueEl) revenueEl.textContent = formatCurrency(totalRevenue);
-    if (profitEl) profitEl.textContent = `Profit: ${formatCurrency(totalProfit)}`;
-    if (topClientEl) topClientEl.textContent = topClient;
-    if (topClientRevEl) topClientRevEl.textContent = formatCurrency(topClientRevenue);
-    if (monthRevenueEl) monthRevenueEl.textContent = formatCurrency(monthSummary.revenue || 0);
-    if (monthProfitEl)
-      monthProfitEl.textContent = `Profit: ${formatCurrency(monthSummary.profit || 0)}`;
-  } catch (error) {
-    console.error("[loadDashboard] Error:", error);
-    const totalEl = document.getElementById("dash-total-estimates");
-    if (totalEl) totalEl.textContent = "—";
-  }
-}
 
 function parseDate(dateString) {
   if (!dateString) return null;
@@ -565,6 +548,9 @@ function showTab(tabName) {
     document.querySelectorAll(".nav-link").forEach((btn) => {
       btn.classList.remove("active");
     });
+    document.querySelectorAll("#nav-menu-container .nav-menu li").forEach((li) => {
+      li.classList.remove("menu-active");
+    });
 
     // Show selected tab
     const selectedTab = document.getElementById(tabName);
@@ -576,8 +562,13 @@ function showTab(tabName) {
 
     // Activate current nav item
     const navButton = document.querySelector(`.nav-link[data-tab="${tabName}"]`);
+    const navAnchor = document.querySelector(`#nav-menu-container a[data-tab="${tabName}"]`);
     if (navButton) {
       navButton.classList.add("active");
+    }
+    if (navAnchor) {
+      const li = navAnchor.closest("li");
+      if (li) li.classList.add("menu-active");
     } else if (event && event.target) {
       event.target.classList.add("active");
     }
@@ -586,9 +577,7 @@ function showTab(tabName) {
     if (tabName === "view") {
       setTimeout(() => loadEstimates(), 100);
     }
-    if (tabName === "dashboard") {
-      setTimeout(() => loadDashboard(), 50);
-    }
+    // No dashboard load for home.
   } catch (error) {
     console.error("Error switching tab:", error);
   }
@@ -1241,7 +1230,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   updateSortIndicators();
   loadVendorsUI();
-  loadDashboard();
   const currencySelect = document.getElementById("currency");
   if (currencySelect) {
     currencySelect.addEventListener("change", () => calculateTotals());

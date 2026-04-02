@@ -21,7 +21,7 @@
           </div>
         </div>
         <div class="nav-actions">
-          <button class="nav-link" data-tab="dashboard" onclick="showTab('dashboard')">Dashboard</button>
+          <button class="nav-link" data-tab="home" onclick="showTab('home')">Home</button>
           <button class="nav-link active" data-tab="create" onclick="showTab('create')">Create</button>
           <button class="nav-link" data-tab="view" onclick="showTab('view')">Estimates</button>
           <button class="nav-link" data-tab="templates" onclick="showTab('templates')">Templates</button>
@@ -29,7 +29,7 @@
           <button class="nav-link" data-tab="workflow" onclick="showTab('workflow')">Workflow</button>
         </div>
       </nav>
-      <header>
+      <header class="app-header">
         <div class="header-content">
           <div class="header-badge">✨ PREMIUM</div>
           <h1>Dream House Interior</h1>
@@ -39,40 +39,170 @@
       </header>
 
       <main>
-        <!-- DASHBOARD TAB -->
-        <div id="dashboard" class="tab-content">
-          <div class="section-header">
-            <h3>
-              <span class="section-icon">📌</span>
-              Dashboard Overview
-            </h3>
-          </div>
-          <div class="ui-grid two-col dashboard-grid">
-            <div class="ui-panel stat-card">
-              <div class="stat-label">Total Estimates</div>
-              <div class="stat-value" id="dash-total-estimates">0</div>
-              <div class="stat-sub" id="dash-latest-estimate">No estimates yet</div>
+        <!-- HOME TAB -->
+        <div id="home" class="tab-content">
+          <section class="landing-hero">
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+              <p class="hero-eyebrow">Interior Studio</p>
+              <h1>Precise concept design for stylish living</h1>
+              <p class="hero-subtitle">
+                Crafting premium interiors with thoughtful planning, refined materials, and elegant detail.
+              </p>
+              <button class="hero-cta" onclick="showTab('create')">Get Started</button>
             </div>
-            <div class="ui-panel stat-card">
-              <div class="stat-label">Total Revenue</div>
-              <div class="stat-value" id="dash-total-revenue">₹ 0.00</div>
-              <div class="stat-sub" id="dash-profit-total">Profit: ₹ 0.00</div>
+          </section>
+
+          <section class="landing-section">
+            <div class="section-title">
+              <h2>What we offer to our clients</h2>
+              <p>Who are in extremely love with eco friendly system.</p>
             </div>
-            <div class="ui-panel stat-card">
-              <div class="stat-label">Top Client</div>
-              <div class="stat-value" id="dash-top-client">-</div>
-              <div class="stat-sub" id="dash-top-client-revenue">₹ 0.00</div>
+            <div class="offer-grid">
+              <article class="offer-card">
+                <h3>Interior Design</h3>
+                <p>Elegant space planning and custom finishes built for modern living.</p>
+              </article>
+              <article class="offer-card featured">
+                <h3>Architecture Design</h3>
+                <p>Structural creativity that respects budget, materials, and build quality.</p>
+              </article>
+              <article class="offer-card">
+                <h3>Concept Design</h3>
+                <p>Vision-first ideation that aligns style, utility, and client taste.</p>
+              </article>
             </div>
-            <div class="ui-panel stat-card">
-              <div class="stat-label">This Month</div>
-              <div class="stat-value" id="dash-month-revenue">₹ 0.00</div>
-              <div class="stat-sub" id="dash-month-profit">Profit: ₹ 0.00</div>
+          </section>
+
+          <section class="landing-section">
+            <div class="section-title">
+              <h2>Our Recent Works may impress you</h2>
+              <p>Who are in extremely love with eco friendly system.</p>
             </div>
-          </div>
+            <div class="works-grid">
+              <div class="work-card large">
+                <div class="work-image work-image-1"></div>
+                <div class="work-caption">Lavendar ambient interior</div>
+              </div>
+              <div class="work-card tall">
+                <div class="work-image work-image-2">
+                  <div class="work-overlay">
+                    <p>Ambient interior</p>
+                    <button>More Details</button>
+                  </div>
+                </div>
+              </div>
+              <div class="work-card">
+                <div class="work-image work-image-3"></div>
+              </div>
+              <div class="work-card">
+                <div class="work-image work-image-4"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="landing-highlight">
+            <div class="section-title light">
+              <h2>Some Features that Made us Unique</h2>
+              <p>Who are in extremely love with eco friendly system.</p>
+            </div>
+            <div class="feature-grid">
+              <div class="feature-card">
+                <h4>Expert Technicians</h4>
+                <p>Seasoned professionals for precise detailing and finishing.</p>
+              </div>
+              <div class="feature-card featured">
+                <h4>Professional Service</h4>
+                <p>End-to-end project supervision with transparent milestones.</p>
+              </div>
+              <div class="feature-card">
+                <h4>Great Support</h4>
+                <p>Dedicated support to keep your project on time.</p>
+              </div>
+              <div class="feature-card">
+                <h4>Technical Skills</h4>
+                <p>Advanced planning with practical, build-ready designs.</p>
+              </div>
+              <div class="feature-card">
+                <h4>Highly Recommended</h4>
+                <p>Trusted by homeowners and commercial clients alike.</p>
+              </div>
+              <div class="feature-card">
+                <h4>Positive Reviews</h4>
+                <p>Consistent client satisfaction and repeat projects.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="landing-section">
+            <div class="section-title">
+              <h2>Testimonial from our Clients</h2>
+              <p>Who are in extremely love with eco friendly system.</p>
+            </div>
+            <div class="testimonial-grid">
+              <article class="testimonial-card">
+                <p>Professional, punctual, and the finish quality was outstanding.</p>
+                <div class="testimonial-name">Lina Harrington</div>
+                <div class="testimonial-rating">★★★★★</div>
+              </article>
+              <article class="testimonial-card">
+                <p>The team helped us visualize and delivered exactly on time.</p>
+                <div class="testimonial-name">Mark Alviro Wiens</div>
+                <div class="testimonial-rating">★★★★★</div>
+              </article>
+            </div>
+          </section>
+
+          <section class="landing-cta">
+            <div>
+              <h2>Looking for a quality and affordable interior design?</h2>
+              <p>Let us build a premium experience tailored to your space.</p>
+            </div>
+            <button onclick="showTab('create')">Request quote now</button>
+          </section>
+
+          <section class="landing-section">
+            <div class="section-title">
+              <h2>Ongoing Exhibitions from the scratch</h2>
+              <p>Who are in extremely love with eco friendly system.</p>
+            </div>
+            <div class="blog-grid">
+              <article class="blog-card">
+                <div class="blog-image blog-image-1"></div>
+                <div class="blog-tags">
+                  <span>Travel</span>
+                  <span>Life Style</span>
+                </div>
+                <h4>It's Classified How To Utilize Free</h4>
+                <p>Acres of Diamonds… you’ve read the famous story, or at least had it related to you.</p>
+                <span class="blog-date">31st January, 2018</span>
+              </article>
+              <article class="blog-card">
+                <div class="blog-image blog-image-2"></div>
+                <div class="blog-tags">
+                  <span>Travel</span>
+                  <span>Life Style</span>
+                </div>
+                <h4>Low Cost Advertising</h4>
+                <p>Acres of Diamonds… you’ve read the famous story, or at least had it related to you.</p>
+                <span class="blog-date">31st January, 2018</span>
+              </article>
+              <article class="blog-card">
+                <div class="blog-image blog-image-3"></div>
+                <div class="blog-tags">
+                  <span>Travel</span>
+                  <span>Life Style</span>
+                </div>
+                <h4>Creative Outdoor Ads</h4>
+                <p>Acres of Diamonds… you’ve read the famous story, or at least had it related to you.</p>
+                <span class="blog-date">31st January, 2018</span>
+              </article>
+            </div>
+          </section>
         </div>
 
         <!-- CREATE ESTIMATE TAB -->
-        <div id="create" class="tab-content active">
+        <div id="create" class="tab-content">
           <form id="estimateForm">
             <section class="form-section">
               <div class="section-header">
@@ -667,7 +797,8 @@
             </div>
           </section>
         </div>
-      </main>
+      </div>
+    </main>
 
       <!-- MODAL: View Estimate Details -->
       <div id="viewModal" class="modal" style="display: none;">
@@ -815,11 +946,9 @@
           </div>
         </div>
       </div>
-    </main>
-
-      <footer>
-        <p>&copy; 2026 Dream House Interior. All rights reserved.</p>
-      </footer>
+    <footer class="app-footer">
+      <p>&copy; 2026 Dream House Interior. All rights reserved.</p>
+    </footer>
     </div>
 
     <script src="js/data.js?v=20260223"></script>

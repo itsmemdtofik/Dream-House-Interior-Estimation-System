@@ -15,6 +15,13 @@ NC='\033[0m' # No Color
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Load environment variables if .env exists
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}❌ Python 3 is not installed. Please install Python 3.8 or higher.${NC}"

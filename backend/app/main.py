@@ -644,7 +644,10 @@ def send_estimate_email(
     smtp_pass = os.getenv("SMTP_PASS")
     smtp_from = os.getenv("SMTP_FROM", smtp_user)
     if not smtp_host or not smtp_user or not smtp_pass:
-        raise HTTPException(status_code=400, detail="SMTP not configured")
+        raise HTTPException(
+            status_code=400,
+            detail="SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS (and optional SMTP_PORT, SMTP_FROM).",
+        )
 
     email = EmailMessage()
     email["From"] = smtp_from
